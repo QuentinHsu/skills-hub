@@ -250,7 +250,7 @@ enum SkillServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidSkill:
-            return "The selected directory does not contain a valid SKILL.md file."
+            return LocalizationManager.localize("error.no_valid_skill_md")
         }
     }
 }

@@ -1,0 +1,83 @@
+/* ContentView */
+"ui.search.placeholder" = "Search skills...";
+"ui.action.delete_count" = "Delete (%lld)";
+"ui.action.done" = "Done";
+"ui.action.edit" = "Edit";
+"ui.action.add_skill" = "Add Skill";
+"ui.label.agents" = "Agents";
+"ui.action.sync" = "Sync";
+"ui.action.copy_to_project" = "Copy to Project";
+"ui.hint.copy_to_project" = "Copy this skill to a project directory";
+"alert.delete.title" = "Delete %lld skill(s)?";
+"ui.action.cancel" = "Cancel";
+"ui.action.delete" = "Delete";
+"alert.delete.message" = "This action cannot be undone.";
+"ui.label.no_selection" = "No Selection";
+"ui.hint.select_from_sidebar" = "Select a skill or agent from the sidebar.";
+"ui.label.loading" = "Loading...";
+
+/* SidebarView */
+"ui.label.no_skills" = "No Skills";
+"ui.hint.no_skills" = "Click + to add skills from local files or Git repositories.";
+"ui.sidebar.skills_count" = "Skills (%lld)";
+"ui.sidebar.agents_count" = "Agents (%lld)";
+"time.just_now" = "just now";
+"time.minutes_ago" = "%lldm ago";
+"time.hours_ago" = "%lldh ago";
+"time.days_ago" = "%lldd ago";
+
+/* SkillDetailView */
+"ui.label.no_skill_selected" = "No Skill Selected";
+"ui.hint.select_skill_preview" = "Select a skill from the sidebar to preview its content.";
+"ui.skill.copy_md" = "Copy SKILL.md";
+"ui.skill.reveal_in_finder" = "Reveal in Finder";
+"ui.skill.modified" = "Modified: %@";
+"ui.hint.enable_agent" = "Enable an agent to auto-link this skill";
+"ui.skill.linked_to" = "Linked to: %@";
+"ui.skill.rules_count" = "Rules (%lld)";
+"ui.skill.open_in_finder" = "Open in Finder";
+
+/* AddSkillView */
+"ui.add_skill.title" = "Add Skill";
+"ui.add_skill.local_tab" = "Local Directory";
+"ui.add_skill.git_tab" = "From Git URL";
+"ui.add_skill.import_dir_title" = "Import a Skill Directory";
+"ui.add_skill.import_dir_hint" = "Select a directory containing SKILL.md. The entire directory will be copied to your skill hub.";
+"ui.action.choose_directory" = "Choose Directory...";
+"ui.add_skill.import_git_title" = "Import from Git Repository";
+"ui.add_skill.import_git_hint" = "Paste a URL to a skills directory containing SKILL.md.";
+"ui.add_skill.repository_url" = "Repository URL";
+"ui.action.import" = "Import";
+"ui.add_skill.cloning" = "Cloning and discovering skills...";
+"ui.add_skill.imported_count" = "Imported %lld skill(s):";
+"error.no_valid_skills" = "No valid skills found in the specified path.";
+"ui.add_skill.supported_formats" = "Supported URL formats:";
+
+/* AgentView */
+"ui.agent.preset_agents" = "Preset Agents";
+"ui.hint.preset_agents" = "Enable an agent to link skills to its directory via symlink.";
+"ui.agent.custom_agents" = "Custom Agents";
+"ui.label.no_custom_agents" = "No custom agents";
+"ui.agent.info" = "Agent Info";
+"ui.agent.display_name" = "Display Name";
+"ui.agent.skills_dir_path" = "Skills Directory Path";
+"ui.action.browse" = "Browse...";
+"ui.action.add" = "Add";
+"ui.agent.add_custom" = "Add Custom Agent";
+
+/* AgentDetailView */
+"ui.label.no_agents" = "No Agents";
+"ui.hint.no_agents" = "Click the Agents button to enable preset agents or add custom ones.";
+"ui.label.no_skills_linked" = "No skills linked";
+
+/* Status messages */
+"status.cloning_repo" = "Cloning repository...";
+"status.syncing_links" = "Syncing links...";
+"status.all_links_valid" = "All links are valid.";
+"status.repaired_links" = "Repaired %lld broken link(s).";
+
+/* Errors */
+"error.invalid_git_url" = "Invalid Git repository URL. Expected format: https://github.com/{owner}/{repo}/tree/{branch}/{path}";
+"error.git_not_found" = "Git is not installed. Please install Xcode Command Line Tools.";
+"error.no_skills_found" = "No skills (directories with SKILL.md) found in the specified path.";
+"error.no_valid_skill_md" = "The selected directory does not contain a valid SKILL.md file.";

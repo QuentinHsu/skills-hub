@@ -1,23 +1,24 @@
 import SwiftUI
 
 struct AgentDetailView: View {
+    @Environment(LocalizationManager.self) private var lm
     let manager: SkillManager
     @State private var selectedAgent: Agent?
 
     var body: some View {
         if manager.agents.isEmpty {
             ContentUnavailableView {
-                Label("No Agents", systemImage: "person.2.slash")
+                Label(L.string("ui.label.no_agents", using: lm), systemImage: "person.2.slash")
             } description: {
-                Text("Click the Agents button to enable preset agents or add custom ones.")
+                L.text("ui.hint.no_agents", using: lm)
             }
         } else {
             List(manager.agents, selection: $selectedAgent) { agent in
-                AgentDetailRow(manager: manager, agent: agent)
+                AgentDetailRow(manager: manager, agent: agent, lm: lm)
                     .tag(agent)
             }
             .listStyle(.inset)
-            .navigationTitle("Agents")
+            .navigationTitle(L.string("ui.label.agents", using: lm))
         }
     }
 }
@@ -25,6 +26,7 @@ struct AgentDetailView: View {
 private struct AgentDetailRow: View {
     let manager: SkillManager
     let agent: Agent
+    let lm: LocalizationManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -48,7 +50,7 @@ private struct AgentDetailRow: View {
             }
 
             if linkedSkills.isEmpty {
-                Text("No skills linked")
+                L.text("ui.label.no_skills_linked", using: lm)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .italic()

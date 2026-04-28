@@ -1,17 +1,18 @@
 import SwiftUI
 
 struct SkillDetailView: View {
+    @Environment(LocalizationManager.self) private var lm
     let manager: SkillManager
     let skill: Skill?
 
     var body: some View {
         if let skill {
-            SkillDetailContent(manager: manager, skill: skill)
+            SkillDetailContent(manager: manager, skill: skill, lm: lm)
         } else {
             ContentUnavailableView {
-                Label("No Skill Selected", systemImage: "doc.text")
+                Label(L.string("ui.label.no_skill_selected", using: lm), systemImage: "doc.text")
             } description: {
-                Text("Select a skill from the sidebar to preview its content.")
+                L.text("ui.hint.select_skill_preview", using: lm)
             }
         }
     }
@@ -20,6 +21,7 @@ struct SkillDetailView: View {
 private struct SkillDetailContent: View {
     let manager: SkillManager
     let skill: Skill
+    let lm: LocalizationManager
 
     var body: some View {
         ScrollView {
@@ -43,7 +45,7 @@ private struct SkillDetailContent: View {
                         NSPasteboard.general.setString(content, forType: .string)
                     }
                 } label: {
-                    Label("Copy SKILL.md", systemImage: "doc.on.doc")
+                    Label(L.string("ui.skill.copy_md", using: lm), systemImage: "doc.on.doc")
                 }
 
                 Button {
@@ -52,7 +54,7 @@ private struct SkillDetailContent: View {
                         inFileViewerRootedAtPath: skill.directoryURL.path()
                     )
                 } label: {
-                    Label("Reveal in Finder", systemImage: "folder")
+                    Label(L.string("ui.skill.reveal_in_finder", using: lm), systemImage: "folder")
                 }
             }
         }
@@ -81,7 +83,7 @@ private struct SkillDetailContent: View {
 
             HStack(spacing: 16) {
                 Label {
-                    Text("Modified: \(skill.modifiedAt.formatted(.dateTime.month(.abbreviated).day().year().hour().minute()))")
+                    L.text("ui.skill.modified", [skill.modifiedAt.formatted(.dateTime.month(.abbreviated).day().year().hour().minute()) as NSString], using: lm)
                 } icon: {
                     Image(systemName: "calendar")
                 }
@@ -111,11 +113,11 @@ private struct SkillDetailContent: View {
                     if linked.isEmpty {
                         Image(systemName: "link.badge.plus")
                             .foregroundStyle(.orange)
-                        Text("Enable an agent to auto-link this skill")
+                        L.text("ui.hint.enable_agent", using: lm)
                     } else {
                         Image(systemName: "link")
                             .foregroundStyle(.green)
-                        Text("Linked to: \(linked.map(\.displayName).joined(separator: ", "))")
+                        L.text("ui.skill.linked_to", [linked.map(\.displayName).joined(separator: ", ") as NSString], using: lm)
                     }
                 }
                 .font(.caption)
@@ -135,7 +137,7 @@ private struct SkillDetailContent: View {
 
     private var rulesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Rules (\(skill.ruleFiles.count))")
+            L.text("ui.skill.rules_count", [Int64(skill.ruleFiles.count)], using: lm)
                 .font(.headline)
 
             ForEach(skill.ruleFiles, id: \.self) { rulePath in
@@ -158,7 +160,7 @@ private struct SkillDetailContent: View {
                         Image(systemName: "arrow.up.forward.app")
                     }
                     .buttonStyle(.borderless)
-                    .help("Open in Finder")
+                    .help(L.string("ui.skill.open_in_finder", using: lm))
                 }
             }
         }

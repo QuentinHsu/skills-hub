@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(LocalizationManager.self) private var lm
     @State private var manager = SkillManager()
     @State private var detailItem: SidebarItem?
     @State private var selectedItems = Set<SidebarItem>()
@@ -38,14 +39,14 @@ struct ContentView: View {
             detailView
         }
         .navigationSplitViewStyle(.balanced)
-        .searchable(text: $manager.searchText, placement: .sidebar, prompt: "Search skills...")
+        .searchable(text: $manager.searchText, placement: .sidebar, prompt: L.string("ui.search.placeholder", using: lm))
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 if isEditing && selectedSkillCount > 0 {
                     Button {
                         showBatchDeleteConfirm = true
                     } label: {
-                        Label("Delete (\(selectedSkillCount))", systemImage: "trash")
+                        Label(L.string("ui.action.delete_count", [Int64(selectedSkillCount)], using: lm), systemImage: "trash")
                     }
                     .tint(.red)
                 }
@@ -54,26 +55,26 @@ struct ContentView: View {
                     Button {
                         isEditing = false
                     } label: {
-                        Text("Done")
+                        L.text("ui.action.done", using: lm)
                     }
                 } else {
                     Button {
                         isEditing = true
                     } label: {
-                        Label("Edit", systemImage: "checklist")
+                        Label(L.string("ui.action.edit", using: lm), systemImage: "checklist")
                     }
                 }
 
                 Button {
                     showingAddSkill = true
                 } label: {
-                    Label("Add Skill", systemImage: "plus")
+                    Label(L.string("ui.action.add_skill", using: lm), systemImage: "plus")
                 }
 
                 Button {
                     showingAgentManager = true
                 } label: {
-                    Label("Agents", systemImage: "person.2")
+                    Label(L.string("ui.label.agents", using: lm), systemImage: "person.2")
                 }
 
                 Button {
@@ -81,22 +82,40 @@ struct ContentView: View {
                         try? await manager.syncAll()
                     }
                 } label: {
-                    Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                    Label(L.string("ui.action.sync", using: lm), systemImage: "arrow.triangle.2.circlepath")
                 }
 
                 if selectedSkill != nil {
                     Button {
                         showingCopyPanel = true
                     } label: {
-                        Label("Copy to Project", systemImage: "doc.on.doc")
+                        Label(L.string("ui.action.copy_to_project", using: lm), systemImage: "doc.on.doc")
                     }
-                    .help("Copy this skill to a project directory")
+                    .help(L.string("ui.hint.copy_to_project", using: lm))
+                }
+
+                // Language picker
+                Menu {
+                    ForEach(AppLanguage.allCases) { lang in
+                        Button {
+                            lm.currentLanguage = lang
+                        } label: {
+                            HStack {
+                                Text(lang.displayName)
+                                if lm.currentLanguage == lang {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "globe")
                 }
             }
         }
-        .alert("Delete \(selectedSkillCount) skill(s)?", isPresented: $showBatchDeleteConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
+        .alert(L.string("alert.delete.title", [Int64(selectedSkillCount)], using: lm), isPresented: $showBatchDeleteConfirm) {
+            Button(L.string("ui.action.cancel", using: lm), role: .cancel) {}
+            Button(L.string("ui.action.delete", using: lm), role: .destructive) {
                 let skillsToDelete = selectedItems.compactMap { item -> Skill? in
                     if case .skill(let skill) = item { return skill }
                     return nil
@@ -105,13 +124,15 @@ struct ContentView: View {
                 selectedItems.removeAll()
             }
         } message: {
-            Text("This action cannot be undone.")
+            L.text("alert.delete.message", using: lm)
         }
         .sheet(isPresented: $showingAddSkill) {
             AddSkillView(manager: manager)
+                .environment(lm)
         }
         .sheet(isPresented: $showingAgentManager) {
             AgentView(manager: manager)
+                .environment(lm)
         }
         .fileImporter(
             isPresented: $showingCopyPanel,
@@ -133,19 +154,29 @@ struct ContentView: View {
             if manager.isLoading {
                 VStack {
                     ProgressView()
-                    Text(manager.statusMessage ?? "Loading...")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if let key = manager.statusMessageKey, let arg = manager.statusMessageArg {
+                        L.text(key, [arg], using: lm)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if let key = manager.statusMessageKey {
+                        L.text(key, using: lm)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        L.text("ui.label.loading", using: lm)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .padding()
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
         }
-        .onChange(of: manager.statusMessage) { _, newValue in
+        .onChange(of: manager.statusMessageKey) { _, newValue in
             if newValue != nil, !manager.isLoading {
                 Task {
                     try? await Task.sleep(for: .seconds(3))
-                    manager.statusMessage = nil
+                    manager.statusMessageKey = nil
                 }
             }
         }
@@ -156,13 +187,15 @@ struct ContentView: View {
         switch detailItem {
         case .skill(let skill):
             SkillDetailView(manager: manager, skill: skill)
+                .environment(lm)
         case .agent:
             AgentDetailView(manager: manager)
+                .environment(lm)
         case .none:
             ContentUnavailableView {
-                Label("No Selection", systemImage: "sidebar.left")
+                Label(L.string("ui.label.no_selection", using: lm), systemImage: "sidebar.left")
             } description: {
-                Text("Select a skill or agent from the sidebar.")
+                L.text("ui.hint.select_from_sidebar", using: lm)
             }
         }
     }

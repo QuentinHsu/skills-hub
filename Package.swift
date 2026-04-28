@@ -4,13 +4,17 @@ import PackageDescription
 
 let package = Package(
     name: "SkillsHub",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v15)
     ],
     targets: [
         .executableTarget(
             name: "SkillsHub",
-            path: "Sources"
+            path: "Sources",
+            resources: [
+                .process("Resources"),
+            ]
         )
     ]
 )

@@ -29,6 +29,7 @@ app: build
 	@mkdir -p "$(APP_BUNDLE)/Contents/MacOS"
 	@mkdir -p "$(APP_BUNDLE)/Contents/Resources"
 	@cp "$(RELEASE_DIR)/$(TARGET_NAME)" "$(APP_BUNDLE)/Contents/MacOS/$(TARGET_NAME)"
+	@cp -r "$(RELEASE_DIR)/$(TARGET_NAME)_$(TARGET_NAME).bundle" "$(APP_BUNDLE)/"
 	@cp Info.plist "$(APP_BUNDLE)/Contents/"
 	@if [ -f Assets/AppIcon.icns ]; then \
 		cp Assets/AppIcon.icns "$(APP_BUNDLE)/Contents/Resources/"; \

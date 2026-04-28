@@ -13,6 +13,7 @@ enum SidebarItem: Hashable, Identifiable {
 }
 
 struct SidebarView: View {
+    @Environment(LocalizationManager.self) private var lm
     let manager: SkillManager
     @Binding var detailItem: SidebarItem?
     @Binding var isEditing: Bool
@@ -23,20 +24,20 @@ struct SidebarView: View {
         List(selection: $selectedItems) {
             if manager.skills.isEmpty && manager.agents.isEmpty {
                 ContentUnavailableView {
-                    Label("No Skills", systemImage: "doc.text")
+                    Label(L.string("ui.label.no_skills", using: lm), systemImage: "doc.text")
                 } description: {
-                    Text("Click + to add skills from local files or Git repositories.")
+                    L.text("ui.hint.no_skills", using: lm)
                 }
             }
 
             if !manager.filteredSkills.isEmpty {
-                Section("Skills (\(manager.filteredSkills.count))") {
+                Section(L.string("ui.sidebar.skills_count", [Int64(manager.filteredSkills.count)], using: lm)) {
                     ForEach(manager.filteredSkills) { skill in
                         let item = SidebarItem.skill(skill)
-                        SkillRow(skill: skill)
+                        SkillRow(skill: skill, lm: lm)
                             .tag(item)
                             .contextMenu {
-                                Button("Delete", role: .destructive) {
+                                Button(L.string("ui.action.delete", using: lm), role: .destructive) {
                                     Task { try? manager.removeSkill(skill) }
                                 }
                             }
@@ -45,7 +46,7 @@ struct SidebarView: View {
             }
 
             if !manager.agents.isEmpty {
-                Section("Agents (\(manager.agents.count))") {
+                Section(L.string("ui.sidebar.agents_count", [Int64(manager.agents.count)], using: lm)) {
                     ForEach(manager.agents) { agent in
                         Label(agent.displayName, systemImage: agent.iconName)
                             .tag(SidebarItem.agent(agent))
@@ -82,6 +83,7 @@ struct SidebarView: View {
 
 private struct SkillRow: View {
     let skill: Skill
+    let lm: LocalizationManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -104,7 +106,7 @@ private struct SkillRow: View {
                 }
                 Text("·")
                 TimelineView(.periodic(from: .now, by: 60)) { _ in
-                    Text(skill.modifiedAt.relativeToMinute)
+                    Text(skill.modifiedAt.localizedRelative())
                 }
             }
             .font(.caption2)
@@ -115,15 +117,15 @@ private struct SkillRow: View {
 }
 
 private extension Date {
-    /// 精确到分钟的相对时间描述（如"3分钟前"、"2小时前"）
-    var relativeToMinute: String {
+    func localizedRelative() -> String {
+        let lang = LocalizationManager.currentLang()
         let interval = -timeIntervalSinceNow
-        if interval < 0 { return "just now" }
+        if interval < 0 { return LocalizationManager.t("time.just_now", lang: lang) }
         let minutes = Int(interval / 60)
-        if minutes < 60 { return "\(minutes)m ago" }
+        if minutes < 60 { return String(format: LocalizationManager.t("time.minutes_ago", lang: lang), Int64(minutes)) }
         let hours = minutes / 60
-        if hours < 24 { return "\(hours)h ago" }
+        if hours < 24 { return String(format: LocalizationManager.t("time.hours_ago", lang: lang), Int64(hours)) }
         let days = hours / 24
-        return "\(days)d ago"
+        return String(format: LocalizationManager.t("time.days_ago", lang: lang), Int64(days))
     }
 }

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AddSkillView: View {
+    @Environment(LocalizationManager.self) private var lm
     let manager: SkillManager
     @Environment(\.dismiss) private var dismiss
 
@@ -11,16 +12,18 @@ struct AddSkillView: View {
     @State private var importedSkills: [Skill] = []
     @State private var showingFolderPicker = false
 
-    enum Tab: String, CaseIterable {
-        case local = "Local Directory"
-        case git = "From Git URL"
+    enum Tab: String, CaseIterable, Identifiable {
+        case local
+        case git
+
+        var id: String { rawValue }
     }
 
     var body: some View {
         VStack(spacing: 0) {
             // Title bar
             HStack {
-                Text("Add Skill")
+                L.text("ui.add_skill.title", using: lm)
                     .font(.headline)
                 Spacer()
                 Button { dismiss() } label: {
@@ -35,9 +38,8 @@ struct AddSkillView: View {
 
             // Segmented picker
             Picker("", selection: $selectedTab) {
-                ForEach(Tab.allCases, id: \.self) { tab in
-                    Text(tab.rawValue).tag(tab)
-                }
+                Text(L.string("ui.add_skill.local_tab", using: lm)).tag(Tab.local)
+                Text(L.string("ui.add_skill.git_tab", using: lm)).tag(Tab.git)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, 20)
@@ -67,16 +69,16 @@ struct AddSkillView: View {
                     .font(.system(size: 28))
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Import a Skill Directory")
+                    L.text("ui.add_skill.import_dir_title", using: lm)
                         .font(.headline)
-                    Text("Select a directory containing SKILL.md. The entire directory will be copied to your skill hub.")
+                    L.text("ui.add_skill.import_dir_hint", using: lm)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
             .padding(.top, 12)
 
-            Button("Choose Directory...") {
+            Button(L.string("ui.action.choose_directory", using: lm)) {
                 showingFolderPicker = true
             }
             .buttonStyle(.borderedProminent)
@@ -115,9 +117,9 @@ struct AddSkillView: View {
                     .font(.system(size: 28))
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Import from Git Repository")
+                    L.text("ui.add_skill.import_git_title", using: lm)
                         .font(.headline)
-                    Text("Paste a URL to a skills directory containing SKILL.md.")
+                    L.text("ui.add_skill.import_git_hint", using: lm)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -125,7 +127,7 @@ struct AddSkillView: View {
             .padding(.top, 12)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Repository URL")
+                L.text("ui.add_skill.repository_url", using: lm)
                     .font(.subheadline.weight(.medium))
 
                 HStack(spacing: 8) {
@@ -136,7 +138,7 @@ struct AddSkillView: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
 
-                    Button("Import") {
+                    Button(L.string("ui.action.import", using: lm)) {
                         importFromGit()
                     }
                     .buttonStyle(.borderedProminent)
@@ -148,7 +150,7 @@ struct AddSkillView: View {
                 HStack(spacing: 8) {
                     ProgressView()
                         .controlSize(.small)
-                    Text("Cloning and discovering skills...")
+                    L.text("ui.add_skill.cloning", using: lm)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -162,7 +164,7 @@ struct AddSkillView: View {
 
             if !importedSkills.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Imported \(importedSkills.count) skill(s):")
+                    L.text("ui.add_skill.imported_count", [Int64(importedSkills.count)], using: lm)
                         .font(.caption.bold())
                     ForEach(importedSkills) { skill in
                         HStack(spacing: 4) {
@@ -185,7 +187,7 @@ struct AddSkillView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Supported URL formats:")
+                L.text("ui.add_skill.supported_formats", using: lm)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
                 Text("github.com/{owner}/{repo}/tree/{branch}/{path}")
@@ -210,7 +212,7 @@ struct AddSkillView: View {
                 let skills = try await manager.addSkills(fromGitURL: gitURL)
                 importedSkills = skills
                 if skills.isEmpty {
-                    errorMessage = "No valid skills found in the specified path."
+                    errorMessage = L.string("error.no_valid_skills", using: lm)
                 }
             } catch {
                 errorMessage = error.localizedDescription

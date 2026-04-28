@@ -1,0 +1,83 @@
+/* ContentView */
+"ui.search.placeholder" = "搜索技能...";
+"ui.action.delete_count" = "删除 (%lld)";
+"ui.action.done" = "完成";
+"ui.action.edit" = "编辑";
+"ui.action.add_skill" = "添加技能";
+"ui.label.agents" = "智能体";
+"ui.action.sync" = "同步";
+"ui.action.copy_to_project" = "复制到项目";
+"ui.hint.copy_to_project" = "将此技能复制到项目目录";
+"alert.delete.title" = "删除 %lld 个技能？";
+"ui.action.cancel" = "取消";
+"ui.action.delete" = "删除";
+"alert.delete.message" = "此操作无法撤销。";
+"ui.label.no_selection" = "未选择";
+"ui.hint.select_from_sidebar" = "从侧边栏选择一个技能或智能体。";
+"ui.label.loading" = "加载中...";
+
+/* SidebarView */
+"ui.label.no_skills" = "暂无技能";
+"ui.hint.no_skills" = "点击 + 从本地文件或 Git 仓库添加技能。";
+"ui.sidebar.skills_count" = "技能 (%lld)";
+"ui.sidebar.agents_count" = "智能体 (%lld)";
+"time.just_now" = "刚刚";
+"time.minutes_ago" = "%lld分钟前";
+"time.hours_ago" = "%lld小时前";
+"time.days_ago" = "%lld天前";
+
+/* SkillDetailView */
+"ui.label.no_skill_selected" = "未选择技能";
+"ui.hint.select_skill_preview" = "从侧边栏选择一个技能以预览其内容。";
+"ui.skill.copy_md" = "复制 SKILL.md";
+"ui.skill.reveal_in_finder" = "在 Finder 中显示";
+"ui.skill.modified" = "修改于：%@";
+"ui.hint.enable_agent" = "启用智能体以自动关联此技能";
+"ui.skill.linked_to" = "已关联：%@";
+"ui.skill.rules_count" = "规则 (%lld)";
+"ui.skill.open_in_finder" = "在 Finder 中打开";
+
+/* AddSkillView */
+"ui.add_skill.title" = "添加技能";
+"ui.add_skill.local_tab" = "本地目录";
+"ui.add_skill.git_tab" = "从 Git URL";
+"ui.add_skill.import_dir_title" = "导入技能目录";
+"ui.add_skill.import_dir_hint" = "选择包含 SKILL.md 的目录。整个目录将被复制到你的技能中心。";
+"ui.action.choose_directory" = "选择目录...";
+"ui.add_skill.import_git_title" = "从 Git 仓库导入";
+"ui.add_skill.import_git_hint" = "粘贴包含 SKILL.md 的技能目录 URL。";
+"ui.add_skill.repository_url" = "仓库 URL";
+"ui.action.import" = "导入";
+"ui.add_skill.cloning" = "正在克隆并发现技能...";
+"ui.add_skill.imported_count" = "已导入 %lld 个技能：";
+"error.no_valid_skills" = "在指定路径中未找到有效技能。";
+"ui.add_skill.supported_formats" = "支持的 URL 格式：";
+
+/* AgentView */
+"ui.agent.preset_agents" = "预设智能体";
+"ui.hint.preset_agents" = "启用智能体以通过符号链接将其技能关联到对应目录。";
+"ui.agent.custom_agents" = "自定义智能体";
+"ui.label.no_custom_agents" = "暂无自定义智能体";
+"ui.agent.info" = "智能体信息";
+"ui.agent.display_name" = "显示名称";
+"ui.agent.skills_dir_path" = "技能目录路径";
+"ui.action.browse" = "浏览...";
+"ui.action.add" = "添加";
+"ui.agent.add_custom" = "添加自定义智能体";
+
+/* AgentDetailView */
+"ui.label.no_agents" = "暂无智能体";
+"ui.hint.no_agents" = "点击智能体按钮以启用预设智能体或添加自定义智能体。";
+"ui.label.no_skills_linked" = "暂无关联技能";
+
+/* Status messages */
+"status.cloning_repo" = "正在克隆仓库...";
+"status.syncing_links" = "正在同步链接...";
+"status.all_links_valid" = "所有链接均有效。";
+"status.repaired_links" = "已修复 %lld 个失效链接。";
+
+/* Errors */
+"error.invalid_git_url" = "无效的 Git 仓库 URL。预期格式：https://github.com/{owner}/{repo}/tree/{branch}/{path}";
+"error.git_not_found" = "未安装 Git。请安装 Xcode 命令行工具。";
+"error.no_skills_found" = "在指定路径中未找到技能（包含 SKILL.md 的目录）。";
+"error.no_valid_skill_md" = "所选目录不包含有效的 SKILL.md 文件。";

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AgentView: View {
+    @Environment(LocalizationManager.self) private var lm
     let manager: SkillManager
     @Environment(\.dismiss) private var dismiss
 
@@ -15,9 +16,9 @@ struct AgentView: View {
                         BuiltInAgentRow(manager: manager, agent: agent)
                     }
                 } header: {
-                    Text("Preset Agents")
+                    L.text("ui.agent.preset_agents", using: lm)
                 } footer: {
-                    Text("Enable an agent to link skills to its directory via symlink.")
+                    L.text("ui.hint.preset_agents", using: lm)
                 }
 
                 // Custom agents
@@ -27,7 +28,7 @@ struct AgentView: View {
                     }
 
                     if customAgents.isEmpty {
-                        Text("No custom agents")
+                        L.text("ui.label.no_custom_agents", using: lm)
                             .foregroundStyle(.secondary)
                             .italic()
                     } else {
@@ -42,7 +43,7 @@ struct AgentView: View {
                     }
                 } header: {
                     HStack {
-                        Text("Custom Agents")
+                        L.text("ui.agent.custom_agents", using: lm)
                         Spacer()
                         Button {
                             showingAddCustom = true
@@ -53,14 +54,15 @@ struct AgentView: View {
                     }
                 }
             }
-            .navigationTitle("Agents")
+            .navigationTitle(L.string("ui.label.agents", using: lm))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button(L.string("ui.action.done", using: lm)) { dismiss() }
                 }
             }
             .sheet(isPresented: $showingAddCustom) {
                 AddCustomAgentView(manager: manager)
+                    .environment(lm)
             }
         }
         .frame(minWidth: 480, minHeight: 400)
@@ -149,6 +151,7 @@ private struct CustomAgentRow: View {
 // MARK: - Add Custom Agent
 
 private struct AddCustomAgentView: View {
+    @Environment(LocalizationManager.self) private var lm
     let manager: SkillManager
     @Environment(\.dismiss) private var dismiss
 
@@ -158,12 +161,12 @@ private struct AddCustomAgentView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Agent Info") {
-                    TextField("Display Name", text: $name)
+                Section(L.string("ui.agent.info", using: lm)) {
+                    TextField(L.string("ui.agent.display_name", using: lm), text: $name)
                     HStack {
-                        TextField("Skills Directory Path", text: $path)
+                        TextField(L.string("ui.agent.skills_dir_path", using: lm), text: $path)
                             .textFieldStyle(.roundedBorder)
-                        Button("Browse...") {
+                        Button(L.string("ui.action.browse", using: lm)) {
                             selectDirectory { url in
                                 path = url.path()
                             }
@@ -173,13 +176,13 @@ private struct AddCustomAgentView: View {
             }
             .formStyle(.grouped)
             .padding()
-            .navigationTitle("Add Custom Agent")
+            .navigationTitle(L.string("ui.agent.add_custom", using: lm))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L.string("ui.action.cancel", using: lm)) { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Add") {
+                    Button(L.string("ui.action.add", using: lm)) {
                         let resolved = path.hasPrefix("~")
                             ? path.replacingOccurrences(of: "~", with: FileManager.default.homeDirectoryForCurrentUser.path())
                             : path

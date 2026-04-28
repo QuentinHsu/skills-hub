@@ -8,7 +8,8 @@ final class SkillManager {
     var agents: [Agent] = []
     var searchText: String = ""
     var isLoading: Bool = false
-    var statusMessage: String?
+    var statusMessageKey: String?
+    var statusMessageArg: Int64?
 
     let skillService: SkillService
     let gitService: GitService
@@ -71,10 +72,11 @@ final class SkillManager {
 
     func addSkills(fromGitURL gitURLString: String) async throws -> [Skill] {
         isLoading = true
-        statusMessage = "Cloning repository..."
+        statusMessageKey = "status.cloning_repo"
         defer {
             isLoading = false
-            statusMessage = nil
+            statusMessageKey = nil
+            statusMessageArg = nil
         }
 
         let info = try gitService.parseURL(gitURLString)
@@ -143,17 +145,19 @@ final class SkillManager {
 
     func syncAll() async throws {
         isLoading = true
-        statusMessage = "Syncing links..."
+        statusMessageKey = "status.syncing_links"
         defer {
             isLoading = false
-            statusMessage = nil
+            statusMessageKey = nil
+            statusMessageArg = nil
         }
 
         let repairs = try skillService.syncAll(agents: agents)
         if repairs.isEmpty {
-            statusMessage = "All links are valid."
+            statusMessageKey = "status.all_links_valid"
         } else {
-            statusMessage = "Repaired \(repairs.count) broken link(s)."
+            statusMessageKey = "status.repaired_links"
+            statusMessageArg = Int64(repairs.count)
         }
     }
 

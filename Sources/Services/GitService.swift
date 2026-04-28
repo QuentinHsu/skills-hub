@@ -17,16 +17,16 @@ enum GitServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "Invalid Git repository URL. Expected format: https://github.com/{owner}/{repo}/tree/{branch}/{path}"
+            return LocalizationManager.localize("error.invalid_git_url")
         case .gitNotFound:
-            return "Git is not installed. Please install Xcode Command Line Tools."
+            return LocalizationManager.localize("error.git_not_found")
         case .commandFailed(let cmd, let code, let stdout, let stderr):
             var msg = "Command failed (exit \(code)): \(cmd)"
             if !stderr.isEmpty { msg += "\n\(stderr)" }
             if !stdout.isEmpty { msg += "\n\(stdout)" }
             return msg
         case .noSkillsFound:
-            return "No skills (directories with SKILL.md) found in the specified path."
+            return LocalizationManager.localize("error.no_skills_found")
         }
     }
 }
