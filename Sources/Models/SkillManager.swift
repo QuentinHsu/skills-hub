@@ -108,6 +108,19 @@ final class SkillManager {
         skills.removeAll { $0.id == skill.id }
     }
 
+    @discardableResult
+    func removeSkills(_ skillsToRemove: [Skill]) -> [Skill: Error] {
+        var errors: [Skill: Error] = [:]
+        for skill in skillsToRemove {
+            do {
+                try removeSkill(skill)
+            } catch {
+                errors[skill] = error
+            }
+        }
+        return errors
+    }
+
     // MARK: - Custom Agent
 
     func addCustomAgent(name: String, directory: URL) {

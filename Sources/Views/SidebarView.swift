@@ -14,10 +14,13 @@ enum SidebarItem: Hashable, Identifiable {
 
 struct SidebarView: View {
     let manager: SkillManager
-    @Binding var selectedItem: SidebarItem?
+    @Binding var detailItem: SidebarItem?
+    @Binding var isEditing: Bool
+    @Binding var selectedItems: Set<SidebarItem>
+    @State private var lastNonEditSelection = Set<SidebarItem>()
 
     var body: some View {
-        List(selection: $selectedItem) {
+        List(selection: $selectedItems) {
             if manager.skills.isEmpty && manager.agents.isEmpty {
                 ContentUnavailableView {
                     Label("No Skills", systemImage: "doc.text")
@@ -29,8 +32,9 @@ struct SidebarView: View {
             if !manager.filteredSkills.isEmpty {
                 Section("Skills (\(manager.filteredSkills.count))") {
                     ForEach(manager.filteredSkills) { skill in
+                        let item = SidebarItem.skill(skill)
                         SkillRow(skill: skill)
-                            .tag(SidebarItem.skill(skill))
+                            .tag(item)
                             .contextMenu {
                                 Button("Delete", role: .destructive) {
                                     Task { try? manager.removeSkill(skill) }
@@ -50,6 +54,29 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .onChange(of: selectedItems) {
+            syncSelection()
+        }
+        .onChange(of: isEditing) {
+            if isEditing {
+                lastNonEditSelection = selectedItems
+            } else {
+                selectedItems = lastNonEditSelection
+                syncSelection()
+            }
+        }
+    }
+
+    private func syncSelection() {
+        if isEditing { return }
+        if selectedItems.count > 1 {
+            if let current = detailItem, selectedItems.contains(current) {
+                selectedItems = [current]
+            } else {
+                selectedItems = [selectedItems.first!]
+            }
+        }
+        detailItem = selectedItems.first
     }
 }
 

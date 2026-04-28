@@ -2,23 +2,38 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var manager = SkillManager()
-    @State private var selectedItem: SidebarItem?
+    @State private var detailItem: SidebarItem?
+    @State private var selectedItems = Set<SidebarItem>()
+    @State private var isEditing = false
+    @State private var showBatchDeleteConfirm = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
     @State private var showingAddSkill = false
     @State private var showingAgentManager = false
     @State private var showingCopyPanel = false
 
     private var selectedSkill: Skill? {
-        if case .skill(let skill) = selectedItem {
+        if case .skill(let skill) = detailItem {
             return skill
         }
         return nil
     }
 
+    private var selectedSkillCount: Int {
+        selectedItems.filter {
+            if case .skill = $0 { return true }
+            return false
+        }.count
+    }
+
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            SidebarView(manager: manager, selectedItem: $selectedItem)
-                .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 300)
+            SidebarView(
+                manager: manager,
+                detailItem: $detailItem,
+                isEditing: $isEditing,
+                selectedItems: $selectedItems
+            )
+            .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 300)
         } detail: {
             detailView
         }
@@ -26,6 +41,29 @@ struct ContentView: View {
         .searchable(text: $manager.searchText, placement: .sidebar, prompt: "Search skills...")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                if isEditing && selectedSkillCount > 0 {
+                    Button {
+                        showBatchDeleteConfirm = true
+                    } label: {
+                        Label("Delete (\(selectedSkillCount))", systemImage: "trash")
+                    }
+                    .tint(.red)
+                }
+
+                if isEditing {
+                    Button {
+                        isEditing = false
+                    } label: {
+                        Text("Done")
+                    }
+                } else {
+                    Button {
+                        isEditing = true
+                    } label: {
+                        Label("Edit", systemImage: "checklist")
+                    }
+                }
+
                 Button {
                     showingAddSkill = true
                 } label: {
@@ -55,6 +93,19 @@ struct ContentView: View {
                     .help("Copy this skill to a project directory")
                 }
             }
+        }
+        .alert("Delete \(selectedSkillCount) skill(s)?", isPresented: $showBatchDeleteConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                let skillsToDelete = selectedItems.compactMap { item -> Skill? in
+                    if case .skill(let skill) = item { return skill }
+                    return nil
+                }
+                manager.removeSkills(skillsToDelete)
+                selectedItems.removeAll()
+            }
+        } message: {
+            Text("This action cannot be undone.")
         }
         .sheet(isPresented: $showingAddSkill) {
             AddSkillView(manager: manager)
@@ -102,7 +153,7 @@ struct ContentView: View {
 
     @ViewBuilder
     private var detailView: some View {
-        switch selectedItem {
+        switch detailItem {
         case .skill(let skill):
             SkillDetailView(manager: manager, skill: skill)
         case .agent:
