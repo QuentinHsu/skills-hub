@@ -23,6 +23,12 @@ private struct SkillDetailContent: View {
     let skill: Skill
     let lm: LocalizationManager
 
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f
+    }()
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -83,7 +89,7 @@ private struct SkillDetailContent: View {
 
             HStack(spacing: 16) {
                 Label {
-                    L.text("ui.skill.modified", [skill.modifiedAt.formatted(.dateTime.month(.abbreviated).day().year().hour().minute()) as NSString], using: lm)
+                    L.text("ui.skill.modified", Self.dateFormatter.string(from: skill.modifiedAt), using: lm)
                 } icon: {
                     Image(systemName: "calendar")
                 }
