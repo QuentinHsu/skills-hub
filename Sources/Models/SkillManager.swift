@@ -96,7 +96,14 @@ final class SkillManager {
             try? FileManager.default.removeItem(at: stagingParent)
         }
 
-        skills.append(contentsOf: addedSkills)
+        // Replace overwritten skills in the array (match by directoryName)
+        for skill in addedSkills {
+            if let idx = skills.firstIndex(where: { $0.directoryName == skill.directoryName }) {
+                skills[idx] = skill
+            } else {
+                skills.append(skill)
+            }
+        }
         sortSkills()
         linkSkillsToAllAgents(addedSkills)
 

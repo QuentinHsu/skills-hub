@@ -59,6 +59,9 @@ struct SkillService: Sendable {
                 .sorted()
         }
 
+        // Read persisted source URL
+        let sourceURL: URL? = readSourceURL(from: directory)
+
         return Skill(
             directoryName: directory.lastPathComponent,
             directoryURL: directory,
@@ -68,10 +71,47 @@ struct SkillService: Sendable {
             version: frontmatter.version,
             content: frontmatter.bodyContent,
             ruleFiles: ruleFiles,
-            sourceURL: nil,
+            sourceURL: sourceURL,
             createdAt: resourceValues?.creationDate ?? .distantPast,
             modifiedAt: resourceValues?.contentModificationDate ?? .distantPast
         )
+    }
+
+    // MARK: - Source URL Persistence
+
+    private static let sourceFileName = ".source"
+
+    private func readSourceURL(from directory: URL) -> URL? {
+        let fileURL = directory.appendingPathComponent(Self.sourceFileName)
+        guard let content = try? String(contentsOf: fileURL, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
+              !content.isEmpty
+        else {
+            return nil
+        }
+        return URL(string: content)
+    }
+
+    private func writeSourceURL(_ url: URL, to directory: URL) {
+        let fileURL = directory.appendingPathComponent(Self.sourceFileName)
+        try? url.absoluteString.write(to: fileURL, atomically: true, encoding: .utf8)
+    }
+
+    /// Find existing skill directory that was imported from the given source URL.
+    func findExistingSkill(fromSourceURL sourceURL: URL) -> Skill? {
+        let allSkills = scan()
+        // Normalize for comparison: strip trailing slash and .git suffix
+        let normalized = normalizeSourceURL(sourceURL)
+        return allSkills.first { skill in
+            guard let existing = skill.sourceURL else { return false }
+            return normalizeSourceURL(existing) == normalized
+        }
+    }
+
+    private func normalizeSourceURL(_ url: URL) -> String {
+        var str = url.absoluteString
+        if str.hasSuffix("/") { str = String(str.dropLast()) }
+        if str.hasSuffix(".git") { str = String(str.dropLast(4)) }
+        return str.lowercased()
     }
 
     // MARK: - Add (from directory)
@@ -82,18 +122,47 @@ struct SkillService: Sendable {
         let dirName = sourceDir.lastPathComponent
         let destination = hubDirectory.appendingPathComponent(dirName)
 
-        // Handle name conflicts
-        var finalDestination = destination
-        var counter = 1
-        while FileManager.default.fileExists(atPath: finalDestination.path()) {
-            finalDestination = hubDirectory.appendingPathComponent("\(dirName)-\(counter)")
-            counter += 1
+        // Same directory name already exists → overwrite (re-import from same source)
+        if FileManager.default.fileExists(atPath: destination.path()) {
+            let symlinks = findSymlinks(for: Skill(
+                directoryName: dirName,
+                directoryURL: destination,
+                name: "", description: "", author: nil, version: nil,
+                content: "", ruleFiles: [], sourceURL: nil,
+                createdAt: .distantPast, modifiedAt: .distantPast
+            ))
+
+            try FileManager.default.removeItem(at: destination)
+            try FileManager.default.copyItem(at: sourceDir, to: destination)
+            if let sourceGitURL { writeSourceURL(sourceGitURL, to: destination) }
+
+            guard let skill = loadSkill(from: destination) else {
+                try? FileManager.default.removeItem(at: destination)
+                throw SkillServiceError.invalidSkill
+            }
+
+            // Restore symlinks
+            for symlink in symlinks {
+                let agentSkillsDir = symlink.deletingLastPathComponent()
+                let newLinkPath = agentSkillsDir.appendingPathComponent(skill.directoryName)
+                if symlink.path() != newLinkPath.path() {
+                    try? FileManager.default.removeItem(at: symlink)
+                }
+                try? FileManager.default.createSymbolicLink(
+                    atPath: newLinkPath.path(),
+                    withDestinationPath: skill.directoryURL.path()
+                )
+            }
+
+            return skill
         }
 
-        try FileManager.default.copyItem(at: sourceDir, to: finalDestination)
+        // New skill
+        try FileManager.default.copyItem(at: sourceDir, to: destination)
+        if let sourceGitURL { writeSourceURL(sourceGitURL, to: destination) }
 
-        guard let skill = loadSkill(from: finalDestination) else {
-            try? FileManager.default.removeItem(at: finalDestination)
+        guard let skill = loadSkill(from: destination) else {
+            try? FileManager.default.removeItem(at: destination)
             throw SkillServiceError.invalidSkill
         }
 

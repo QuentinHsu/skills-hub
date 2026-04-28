@@ -11,6 +11,7 @@ struct GitRepoInfo: Sendable {
 enum GitServiceError: LocalizedError {
     case invalidURL
     case gitNotFound
+    case downloadFailed(statusCode: Int)
     case commandFailed(command: String, exitCode: Int32, stdout: String, stderr: String)
     case noSkillsFound
 
@@ -20,6 +21,8 @@ enum GitServiceError: LocalizedError {
             return LocalizationManager.localize("error.invalid_git_url")
         case .gitNotFound:
             return LocalizationManager.localize("error.git_not_found")
+        case .downloadFailed(let code):
+            return "Download failed (HTTP \(code))"
         case .commandFailed(let cmd, let code, let stdout, let stderr):
             var msg = "Command failed (exit \(code)): \(cmd)"
             if !stderr.isEmpty { msg += "\n\(stderr)" }
@@ -36,7 +39,10 @@ struct GitService: Sendable {
     // MARK: - URL Parsing
 
     func parseURL(_ urlString: String) throws -> GitRepoInfo {
-        guard let components = URLComponents(string: urlString),
+        // Normalize: strip trailing slash
+        let normalized = urlString.hasSuffix("/") ? String(urlString.dropLast()) : urlString
+
+        guard let components = URLComponents(string: normalized),
               let host = components.host,
               let scheme = components.scheme
         else {
@@ -44,6 +50,14 @@ struct GitService: Sendable {
         }
 
         let pathParts = components.path.split(separator: "/").map(String.init)
+
+        // Bare repo URL: https://github.com/owner/repo (exactly 2 path parts, no tree keyword)
+        if pathParts.count == 2 {
+            let owner = pathParts[0]
+            let repo = pathParts[1].hasSuffix(".git") ? String(pathParts[1].dropLast(4)) : pathParts[1]
+            let cloneURL = URL(string: "\(scheme)://\(host)/\(owner)/\(repo).git")!
+            return GitRepoInfo(owner: owner, repo: repo, branch: "main", path: "", cloneURL: cloneURL)
+        }
 
         let treeKeyword: String
         let separator: String?
@@ -95,10 +109,76 @@ struct GitService: Sendable {
         return GitRepoInfo(owner: owner, repo: repo, branch: branch, path: path, cloneURL: cloneURL)
     }
 
-    // MARK: - Clone + Discover Skills
+    // MARK: - Fetch + Discover Skills
 
-    /// Clones repo, discovers directories with SKILL.md, returns their URLs.
+    /// Fetches repo source, discovers directories with SKILL.md, returns staged URLs.
     func fetchSkillDirectories(from info: GitRepoInfo) async throws -> [URL] {
+        let host = info.cloneURL.host ?? ""
+
+        if info.path.isEmpty && (host == "github.com" || host.hasSuffix(".github.com")) {
+            // GitHub bare repo → tarball (lighter, no git required)
+            return try await fetchViaTarball(info: info)
+        } else {
+            // URL with specific path, or non-GitHub host → git clone
+            return try await fetchViaGitClone(info: info)
+        }
+    }
+
+    // MARK: - Tarball Download (bare repo)
+
+    private func fetchViaTarball(info: GitRepoInfo) async throws -> [URL] {
+        let tarURL = URL(string: "https://\(info.cloneURL.host!)/\(info.owner)/\(info.repo)/archive/refs/heads/\(info.branch).tar.gz")!
+
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("skillhub-tarball-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+
+        defer {
+            try? FileManager.default.removeItem(at: tmpDir)
+        }
+
+        // Download tarball
+        let (tarData, response) = try await URLSession.shared.data(from: tarURL)
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+            throw GitServiceError.downloadFailed(statusCode: code)
+        }
+
+        // Write to temp file
+        let tarFile = tmpDir.appendingPathComponent("archive.tar.gz")
+        try tarData.write(to: tarFile)
+
+        // Extract with tar
+        try await runProcess(
+            executable: URL(fileURLWithPath: "/usr/bin/tar"),
+            arguments: ["xzf", tarFile.path(), "-C", tmpDir.path()]
+        )
+
+        // GitHub tarballs extract to a single top-level directory (e.g. "repo-main/")
+        let extractedContents = try FileManager.default.contentsOfDirectory(
+            at: tmpDir,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )
+        guard let repoDir = extractedContents.first(where: { $0.lastPathComponent != "archive.tar.gz" }),
+              (try? repoDir.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
+        else {
+            throw GitServiceError.noSkillsFound
+        }
+
+        // Search for SKILL.md directories
+        let skillDirs = findSkillDirectories(in: repoDir)
+        guard !skillDirs.isEmpty else {
+            throw GitServiceError.noSkillsFound
+        }
+
+        // Stage
+        return try stageDirectories(skillDirs)
+    }
+
+    // MARK: - Git Clone (URL with specific path)
+
+    private func fetchViaGitClone(info: GitRepoInfo) async throws -> [URL] {
         guard gitExists() else {
             throw GitServiceError.gitNotFound
         }
@@ -110,7 +190,7 @@ struct GitService: Sendable {
             try? FileManager.default.removeItem(at: tmpDir)
         }
 
-        // Step 1: Clone
+        // Step 1: Shallow clone
         try await runGit([
             "clone", "--depth", "1", "--filter=blob:none", "--sparse",
             "--branch", info.branch,
@@ -123,7 +203,7 @@ struct GitService: Sendable {
             try await runGitInDir(tmpDir, ["sparse-checkout", "set", info.path])
         }
 
-        // Step 3: Find directories containing SKILL.md
+        // Step 3: Find SKILL.md directories
         let searchDir = info.path.isEmpty
             ? tmpDir
             : tmpDir.appendingPathComponent(info.path)
@@ -133,23 +213,27 @@ struct GitService: Sendable {
         }
 
         let skillDirs = findSkillDirectories(in: searchDir)
-
         guard !skillDirs.isEmpty else {
             throw GitServiceError.noSkillsFound
         }
 
-        // Step 4: Copy to staging
+        // Step 4: Stage
+        return try stageDirectories(skillDirs)
+    }
+
+    // MARK: - Staging
+
+    private func stageDirectories(_ dirs: [URL]) throws -> [URL] {
         let stagingDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("skillhub-staging-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: stagingDir, withIntermediateDirectories: true)
 
         var result: [URL] = []
-        for dir in skillDirs {
+        for dir in dirs {
             let staged = stagingDir.appendingPathComponent(dir.lastPathComponent)
             try FileManager.default.copyItem(at: dir, to: staged)
             result.append(staged)
         }
-
         return result
     }
 
@@ -157,15 +241,12 @@ struct GitService: Sendable {
     private func findSkillDirectories(in directory: URL) -> [URL] {
         var results: [URL] = []
 
-        // Check if this directory itself is a skill
         let skillMd = directory.appendingPathComponent("SKILL.md")
         if FileManager.default.fileExists(atPath: skillMd.path()) {
             results.append(directory)
-            // Don't recurse further — this is a skill directory
-            return results
         }
 
-        // Otherwise, search subdirectories
+        // Always recurse subdirectories to find nested skills
         guard let entries = try? FileManager.default.contentsOfDirectory(
             at: directory,
             includingPropertiesForKeys: [.isDirectoryKey],

@@ -132,7 +132,7 @@ struct AddSkillView: View {
 
                 HStack(spacing: 8) {
                     TextField(
-                        "https://github.com/org/repo/tree/main/.claude/skills",
+                        "https://github.com/org/repo",
                         text: $gitURL
                     )
                     .textFieldStyle(.roundedBorder)
@@ -190,6 +190,7 @@ struct AddSkillView: View {
                 L.text("ui.add_skill.supported_formats", using: lm)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
+                Text("github.com/{owner}/{repo}")
                 Text("github.com/{owner}/{repo}/tree/{branch}/{path}")
                 Text("gitlab.com/{owner}/{repo}/-/tree/{branch}/{path}")
                 Text("bitbucket.org/{owner}/{repo}/src/{branch}/{path}")
