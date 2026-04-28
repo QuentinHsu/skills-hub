@@ -123,7 +123,7 @@ private struct SkillDetailContent: View {
                     } else {
                         Image(systemName: "link")
                             .foregroundStyle(.green)
-                        L.text("ui.skill.linked_to", [linked.map(\.displayName).joined(separator: ", ") as NSString], using: lm)
+                        L.text("ui.skill.linked_to", linked.map(\.displayName).joined(separator: ", "), using: lm)
                     }
                 }
                 .font(.caption)
