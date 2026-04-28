@@ -31,7 +31,7 @@ struct SidebarView: View {
             }
 
             if !manager.filteredSkills.isEmpty {
-                Section(L.string("ui.sidebar.skills_count", [Int64(manager.filteredSkills.count)], using: lm)) {
+                Section(L.string("ui.sidebar.skills_count", using: lm)) {
                     ForEach(manager.filteredSkills) { skill in
                         let item = SidebarItem.skill(skill)
                         SkillRow(skill: skill, lm: lm)

@@ -19,7 +19,7 @@
 /* SidebarView */
 "ui.label.no_skills" = "暂无技能";
 "ui.hint.no_skills" = "点击 + 从本地文件或 Git 仓库添加技能。";
-"ui.sidebar.skills_count" = "技能 (%lld)";
+"ui.sidebar.skills_count" = "技能";
 "ui.sidebar.agents_count" = "智能体 (%lld)";
 "time.just_now" = "刚刚";
 "time.minutes_ago" = "%lld分钟前";
