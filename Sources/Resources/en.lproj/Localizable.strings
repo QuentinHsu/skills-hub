@@ -48,10 +48,20 @@
 "ui.add_skill.import_git_hint" = "Paste a URL to a skills directory containing SKILL.md.";
 "ui.add_skill.repository_url" = "Repository URL";
 "ui.action.import" = "Import";
+"ui.action.discover" = "Discover";
+"ui.action.import_selected" = "Import Selected";
+"ui.action.select_all" = "Select All";
+"ui.action.deselect_all" = "Deselect All";
 "ui.add_skill.cloning" = "Cloning and discovering skills...";
+"ui.add_skill.discovering" = "Discovering skills from repository...";
+"ui.add_skill.discovered_count" = "Discovered %lld skill(s):";
 "ui.add_skill.imported_count" = "Imported %lld skill(s):";
+"ui.badge.internal" = "Internal";
 "error.no_valid_skills" = "No valid skills found in the specified path.";
+"error.discovery_failed" = "Failed to discover skills from the repository.";
 "ui.add_skill.supported_formats" = "Supported URL formats:";
+"status.discovering" = "Discovering skills...";
+"status.importing_selected" = "Importing selected skills...";
 
 /* AgentView */
 "ui.agent.preset_agents" = "Preset Agents";

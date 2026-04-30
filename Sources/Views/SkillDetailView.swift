@@ -112,19 +112,18 @@ private struct SkillDetailContent: View {
 
             // Linked agents
             if !manager.agents.isEmpty {
-                let linked = manager.agents.filter { agent in
-                    manager.skillService.linkStatus(for: skill, agent: agent) == .linked
-                }
                 HStack(spacing: 6) {
-                    if linked.isEmpty {
-                        Image(systemName: "link.badge.plus")
-                            .foregroundStyle(.orange)
-                        L.text("ui.hint.enable_agent", using: lm)
-                    } else {
-                        Image(systemName: "link")
-                            .foregroundStyle(.green)
-                        L.text("ui.skill.linked_to", linked.map(\.displayName).joined(separator: ", "), using: lm)
-                    }
+                    Image(systemName: "link")
+                        .foregroundStyle(.green)
+                    L.text("ui.skill.linked_to", manager.agents.map(\.displayName).joined(separator: ", "), using: lm)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "link.badge.plus")
+                        .foregroundStyle(.orange)
+                    L.text("ui.hint.enable_agent", using: lm)
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)

@@ -6,6 +6,59 @@ struct GitRepoInfo: Sendable {
     let branch: String
     let path: String
     let cloneURL: URL
+    /// Optional skill name filter (from `owner/repo@skill-name` syntax)
+    let skillFilter: String?
+}
+
+private struct PluginManifest: Decodable {
+    let name: String?
+    let skills: [String]
+
+    private enum CodingKeys: String, CodingKey {
+        case name
+        case displayName
+        case skills
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decodeIfPresent(String.self, forKey: .displayName)
+            ?? container.decodeIfPresent(String.self, forKey: .name)
+        skills = try container.decodeIfPresent([String].self, forKey: .skills) ?? []
+    }
+}
+
+private struct MarketplaceManifest: Decodable {
+    let plugins: [MarketplacePlugin]
+}
+
+private struct MarketplacePlugin: Decodable {
+    let name: String?
+    let displayName: String?
+    let source: MarketplacePluginSource?
+    let skills: [String]?
+}
+
+private struct MarketplacePluginSource: Decodable {
+    let name: String?
+    let skills: [String]?
+
+    init(from decoder: Decoder) throws {
+        if let value = try? decoder.singleValueContainer().decode(String.self) {
+            name = value
+            skills = nil
+            return
+        }
+
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        skills = try container.decodeIfPresent([String].self, forKey: .skills)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case name
+        case skills
+    }
 }
 
 enum GitServiceError: LocalizedError {
@@ -41,8 +94,22 @@ struct GitService: Sendable {
     func parseURL(_ urlString: String) throws -> GitRepoInfo {
         // Normalize: strip trailing slash
         let normalized = urlString.hasSuffix("/") ? String(urlString.dropLast()) : urlString
+        let knownHostPrefixes = ["github.com/", "gitlab.com/", "bitbucket.org/"]
+        let parseTarget = knownHostPrefixes.contains(where: { normalized.hasPrefix($0) })
+            ? "https://\(normalized)"
+            : normalized
 
-        guard let components = URLComponents(string: normalized),
+        // SSH URL: git@github.com:owner/repo.git
+        if parseTarget.hasPrefix("git@") {
+            return try parseSSHURL(parseTarget)
+        }
+
+        // GitHub shorthand: owner/repo or owner/repo@skill-name (no scheme, no host)
+        if !parseTarget.contains("://") && !parseTarget.hasPrefix("/") && !parseTarget.hasPrefix(".") {
+            return try parseShorthand(parseTarget)
+        }
+
+        guard let components = URLComponents(string: parseTarget),
               let host = components.host,
               let scheme = components.scheme
         else {
@@ -56,7 +123,7 @@ struct GitService: Sendable {
             let owner = pathParts[0]
             let repo = pathParts[1].hasSuffix(".git") ? String(pathParts[1].dropLast(4)) : pathParts[1]
             let cloneURL = URL(string: "\(scheme)://\(host)/\(owner)/\(repo).git")!
-            return GitRepoInfo(owner: owner, repo: repo, branch: "main", path: "", cloneURL: cloneURL)
+            return GitRepoInfo(owner: owner, repo: repo, branch: "main", path: "", cloneURL: cloneURL, skillFilter: nil)
         }
 
         let treeKeyword: String
@@ -78,6 +145,66 @@ struct GitService: Sendable {
             components, pathParts: pathParts, scheme: scheme, host: host,
             treeKeyword: treeKeyword, separator: separator
         )
+    }
+
+    /// Parse SSH URLs: git@github.com:owner/repo.git[@skill-name]
+    private func parseSSHURL(_ urlString: String) throws -> GitRepoInfo {
+        // git@host:owner/repo.git
+        guard let atRange = urlString.range(of: "@"),
+              let colonRange = urlString.range(of: ":", range: atRange.upperBound..<urlString.endIndex)
+        else {
+            throw GitServiceError.invalidURL
+        }
+
+        let host = String(urlString[atRange.upperBound..<colonRange.lowerBound])
+        var pathPart = String(urlString[colonRange.upperBound...])
+
+        // Handle @skill-name filter
+        var skillFilter: String? = nil
+        if let atIndex = pathPart.firstIndex(of: "@") {
+            skillFilter = String(pathPart[pathPart.index(after: atIndex)...])
+            pathPart = String(pathPart[..<atIndex])
+        }
+
+        if pathPart.hasSuffix(".git") {
+            pathPart = String(pathPart.dropLast(4))
+        }
+
+        let parts = pathPart.split(separator: "/").map(String.init)
+        guard parts.count >= 2 else {
+            throw GitServiceError.invalidURL
+        }
+
+        let owner = parts[0]
+        let repo = parts[1]
+        let path = parts.count > 2 ? parts[2...].joined(separator: "/") : ""
+        let cloneURL = URL(string: "https://\(host)/\(owner)/\(repo).git")!
+
+        return GitRepoInfo(owner: owner, repo: repo, branch: "main", path: path, cloneURL: cloneURL, skillFilter: skillFilter)
+    }
+
+    /// Parse GitHub shorthand: owner/repo[@skill-name] or owner/repo/path[@skill-name]
+    private func parseShorthand(_ input: String) throws -> GitRepoInfo {
+        var working = input
+
+        // Handle @skill-name filter
+        var skillFilter: String? = nil
+        if let atIndex = working.firstIndex(of: "@") {
+            skillFilter = String(working[working.index(after: atIndex)...])
+            working = String(working[..<atIndex])
+        }
+
+        let parts = working.split(separator: "/").map(String.init)
+        guard parts.count >= 2 else {
+            throw GitServiceError.invalidURL
+        }
+
+        let owner = parts[0]
+        let repo = parts[1]
+        let path = parts.count > 2 ? parts[2...].joined(separator: "/") : ""
+        let cloneURL = URL(string: "https://github.com/\(owner)/\(repo).git")!
+
+        return GitRepoInfo(owner: owner, repo: repo, branch: "main", path: path, cloneURL: cloneURL, skillFilter: skillFilter)
     }
 
     private func parseTreeURL(
@@ -106,13 +233,18 @@ struct GitService: Sendable {
             : ""
         let cloneURL = URL(string: "\(scheme)://\(host)/\(owner)/\(repo).git")!
 
-        return GitRepoInfo(owner: owner, repo: repo, branch: branch, path: path, cloneURL: cloneURL)
+        return GitRepoInfo(owner: owner, repo: repo, branch: branch, path: path, cloneURL: cloneURL, skillFilter: nil)
     }
 
     // MARK: - Fetch + Discover Skills
 
     /// Fetches repo source, discovers directories with SKILL.md, returns staged URLs.
     func fetchSkillDirectories(from info: GitRepoInfo) async throws -> [URL] {
+        let stagedDirs = try await fetchStagedSkillDirectories(from: info)
+        return stagedDirs.map(\.directory)
+    }
+
+    private func fetchStagedSkillDirectories(from info: GitRepoInfo) async throws -> [StagedSkillDirectory] {
         let host = info.cloneURL.host ?? ""
 
         if info.path.isEmpty && (host == "github.com" || host.hasSuffix(".github.com")) {
@@ -124,9 +256,83 @@ struct GitService: Sendable {
         }
     }
 
+    private struct LocatedSkillDirectory {
+        let directory: URL
+        let pluginName: String?
+        let relativePath: String
+    }
+
+    private struct StagedSkillDirectory {
+        let directory: URL
+        let pluginName: String?
+        let relativePath: String
+    }
+
+    /// Result of a skill discovery operation. The staging directory must be cleaned up by the caller.
+    struct DiscoveryResult: Sendable {
+        let skills: [DiscoveredSkill]
+        let stagingDirectory: URL
+    }
+
+    /// A skill discovered from a remote repo, parsed but not yet imported.
+    struct DiscoveredSkill: Sendable, Identifiable {
+        let id: String
+        let name: String
+        let description: String
+        let metadataInternal: Bool
+        let pluginName: String?
+        let relativePath: String
+        let stagedDirectory: URL
+    }
+
+    /// Discover skills from a remote repo without importing them.
+    /// Returns parsed skill metadata + staging directory. Caller must clean up stagingDirectory.
+    func discoverSkills(from info: GitRepoInfo) async throws -> DiscoveryResult {
+        let stagedDirs = try await fetchStagedSkillDirectories(from: info)
+
+        var discovered: [DiscoveredSkill] = []
+        var seenNames = Set<String>()
+        for staged in stagedDirs {
+            let skillMdURL = staged.directory.appendingPathComponent("SKILL.md")
+            guard FileManager.default.fileExists(atPath: skillMdURL.path()),
+                  let rawContent = try? String(contentsOf: skillMdURL, encoding: .utf8),
+                  let frontmatter = SkillFrontmatter.parse(rawContent)
+            else { continue }
+
+            if frontmatter.metadataInternal && info.skillFilter == nil {
+                continue
+            }
+
+            if let filter = info.skillFilter,
+               frontmatter.name.lowercased() != filter.lowercased() {
+                continue
+            }
+
+            let normalizedName = frontmatter.name.lowercased()
+            guard !seenNames.contains(normalizedName) else { continue }
+            seenNames.insert(normalizedName)
+
+            discovered.append(DiscoveredSkill(
+                id: staged.directory.path(),
+                name: frontmatter.name,
+                description: frontmatter.description,
+                metadataInternal: frontmatter.metadataInternal,
+                pluginName: frontmatter.pluginName ?? staged.pluginName,
+                relativePath: staged.relativePath,
+                stagedDirectory: staged.directory
+            ))
+        }
+
+        // Get the staging parent directory (shared by all staged dirs)
+        let stagingDir = stagedDirs.first?.directory.deletingLastPathComponent()
+            ?? FileManager.default.temporaryDirectory
+
+        return DiscoveryResult(skills: discovered, stagingDirectory: stagingDir)
+    }
+
     // MARK: - Tarball Download (bare repo)
 
-    private func fetchViaTarball(info: GitRepoInfo) async throws -> [URL] {
+    private func fetchViaTarball(info: GitRepoInfo) async throws -> [StagedSkillDirectory] {
         let tarURL = URL(string: "https://\(info.cloneURL.host!)/\(info.owner)/\(info.repo)/archive/refs/heads/\(info.branch).tar.gz")!
 
         let tmpDir = FileManager.default.temporaryDirectory
@@ -178,7 +384,7 @@ struct GitService: Sendable {
 
     // MARK: - Git Clone (URL with specific path)
 
-    private func fetchViaGitClone(info: GitRepoInfo) async throws -> [URL] {
+    private func fetchViaGitClone(info: GitRepoInfo) async throws -> [StagedSkillDirectory] {
         guard gitExists() else {
             throw GitServiceError.gitNotFound
         }
@@ -223,46 +429,290 @@ struct GitService: Sendable {
 
     // MARK: - Staging
 
-    private func stageDirectories(_ dirs: [URL]) throws -> [URL] {
+    private func stageDirectories(_ dirs: [LocatedSkillDirectory]) throws -> [StagedSkillDirectory] {
         let stagingDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("skillhub-staging-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: stagingDir, withIntermediateDirectories: true)
 
-        var result: [URL] = []
+        var result: [StagedSkillDirectory] = []
+        var usedDirectoryNames = Set<String>()
         for dir in dirs {
-            let staged = stagingDir.appendingPathComponent(dir.lastPathComponent)
-            try FileManager.default.copyItem(at: dir, to: staged)
-            result.append(staged)
+            var stagedName = dir.directory.lastPathComponent
+            if usedDirectoryNames.contains(stagedName) {
+                stagedName = "\(stagedName)-\(result.count + 1)"
+            }
+            usedDirectoryNames.insert(stagedName)
+
+            let staged = stagingDir.appendingPathComponent(stagedName)
+            try FileManager.default.copyItem(at: dir.directory, to: staged)
+            result.append(StagedSkillDirectory(
+                directory: staged,
+                pluginName: dir.pluginName,
+                relativePath: dir.relativePath
+            ))
         }
         return result
     }
 
-    /// Recursively finds directories that contain SKILL.md
-    private func findSkillDirectories(in directory: URL) -> [URL] {
-        var results: [URL] = []
-
-        let skillMd = directory.appendingPathComponent("SKILL.md")
-        if FileManager.default.fileExists(atPath: skillMd.path()) {
-            results.append(directory)
+    /// Finds skill directories using the same shape as vercel-labs/skills:
+    /// root skill first, then conventional skill folders, then a bounded recursive fallback.
+    private func findSkillDirectories(in directory: URL) -> [LocatedSkillDirectory] {
+        if containsSkillMD(directory) {
+            return [LocatedSkillDirectory(
+                directory: directory,
+                pluginName: nil,
+                relativePath: "."
+            )]
         }
 
-        // Always recurse subdirectories to find nested skills
+        let manifestSkillDirs = skillDirectoriesFromPluginManifests(in: directory)
+        let priorityDirs = [
+            directory,
+            directory.appendingPathComponent("skills"),
+            directory.appendingPathComponent("skills/.curated"),
+            directory.appendingPathComponent(".claude/skills"),
+            directory.appendingPathComponent(".codex/skills"),
+            directory.appendingPathComponent(".agents/skills"),
+            directory.appendingPathComponent("agents/skills"),
+            directory.appendingPathComponent("agent/skills"),
+            directory.appendingPathComponent("claude/skills"),
+            directory.appendingPathComponent("codex/skills"),
+        ] + manifestSkillDirs
+
+        var results: [LocatedSkillDirectory] = []
+        var seenPaths = Set<String>()
+
+        for priorityDir in priorityDirs {
+            guard directoryExists(priorityDir) else { continue }
+            if containsSkillMD(priorityDir) {
+                appendLocatedSkill(
+                    priorityDir,
+                    root: directory,
+                    pluginName: pluginNameForSkill(at: priorityDir, root: directory),
+                    to: &results,
+                    seenPaths: &seenPaths
+                )
+            }
+
+            for child in childDirectories(of: priorityDir) where containsSkillMD(child) {
+                appendLocatedSkill(
+                    child,
+                    root: directory,
+                    pluginName: pluginNameForSkill(at: child, root: directory),
+                    to: &results,
+                    seenPaths: &seenPaths
+                )
+            }
+        }
+
+        if !results.isEmpty {
+            return results
+        }
+
+        findSkillDirectoriesRecursively(
+            in: directory,
+            root: directory,
+            depth: 0,
+            maxDepth: 5,
+            results: &results,
+            seenPaths: &seenPaths
+        )
+
+        return results
+    }
+
+    private func findSkillDirectoriesRecursively(
+        in directory: URL,
+        root: URL,
+        depth: Int,
+        maxDepth: Int,
+        results: inout [LocatedSkillDirectory],
+        seenPaths: inout Set<String>
+    ) {
+        guard depth <= maxDepth else { return }
+
+        if depth > 0, containsSkillMD(directory) {
+            appendLocatedSkill(
+                directory,
+                root: root,
+                pluginName: pluginNameForSkill(at: directory, root: root),
+                to: &results,
+                seenPaths: &seenPaths
+            )
+            return
+        }
+
+        for child in childDirectories(of: directory) where !shouldSkipDirectory(child) {
+            findSkillDirectoriesRecursively(
+                in: child,
+                root: root,
+                depth: depth + 1,
+                maxDepth: maxDepth,
+                results: &results,
+                seenPaths: &seenPaths
+            )
+        }
+    }
+
+    private func appendLocatedSkill(
+        _ directory: URL,
+        root: URL,
+        pluginName: String?,
+        to results: inout [LocatedSkillDirectory],
+        seenPaths: inout Set<String>
+    ) {
+        let normalizedPath = directory.standardizedFileURL.path()
+        guard !seenPaths.contains(normalizedPath) else { return }
+        seenPaths.insert(normalizedPath)
+
+        results.append(LocatedSkillDirectory(
+            directory: directory,
+            pluginName: pluginName,
+            relativePath: relativePath(from: root, to: directory)
+        ))
+    }
+
+    private func containsSkillMD(_ directory: URL) -> Bool {
+        FileManager.default.fileExists(atPath: directory.appendingPathComponent("SKILL.md").path())
+    }
+
+    private func directoryExists(_ directory: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: directory.path(), isDirectory: &isDirectory)
+            && isDirectory.boolValue
+    }
+
+    private func childDirectories(of directory: URL) -> [URL] {
         guard let entries = try? FileManager.default.contentsOfDirectory(
             at: directory,
             includingPropertiesForKeys: [.isDirectoryKey],
             options: [.skipsHiddenFiles]
         ) else {
-            return results
+            return []
         }
 
-        for entry in entries {
-            let resourceValues = try? entry.resourceValues(forKeys: [.isDirectoryKey])
-            if resourceValues?.isDirectory == true {
-                results.append(contentsOf: findSkillDirectories(in: entry))
+        return entries.filter { entry in
+            (try? entry.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
+        }
+    }
+
+    private func shouldSkipDirectory(_ directory: URL) -> Bool {
+        let skippedNames = Set([
+            ".git", "node_modules", ".next", "dist", "build",
+            ".cache", "coverage", "__pycache__",
+        ])
+        return skippedNames.contains(directory.lastPathComponent)
+    }
+
+    private func relativePath(from root: URL, to directory: URL) -> String {
+        let rootPath = root.standardizedFileURL.path()
+        let directoryPath = directory.standardizedFileURL.path()
+
+        guard directoryPath != rootPath else { return "." }
+        guard directoryPath.hasPrefix(rootPath + "/") else { return directory.lastPathComponent }
+
+        return String(directoryPath.dropFirst(rootPath.count + 1))
+    }
+
+    private func skillDirectoriesFromPluginManifests(in root: URL) -> [URL] {
+        let pluginJSON = root.appendingPathComponent(".claude-plugin/plugin.json")
+        let marketplaceJSON = root.appendingPathComponent(".claude-plugin/marketplace.json")
+        var directories: [URL] = []
+
+        if let manifest = decodeJSON(PluginManifest.self, from: pluginJSON) {
+            directories.append(contentsOf: manifest.skills.compactMap { relativeSkillParent($0, root: root) })
+        }
+
+        if let manifest = decodeJSON(MarketplaceManifest.self, from: marketplaceJSON) {
+            for plugin in manifest.plugins {
+                let skillPaths = plugin.skills ?? plugin.source?.skills ?? []
+                directories.append(contentsOf: skillPaths.compactMap { relativeSkillParent($0, root: root) })
             }
         }
 
-        return results
+        return uniqueDirectories(directories)
+    }
+
+    private func pluginNameForSkill(at skillDirectory: URL, root: URL) -> String? {
+        let skillPath = relativePath(from: root, to: skillDirectory)
+        let pluginJSON = root.appendingPathComponent(".claude-plugin/plugin.json")
+        let marketplaceJSON = root.appendingPathComponent(".claude-plugin/marketplace.json")
+
+        if let manifest = decodeJSON(PluginManifest.self, from: pluginJSON),
+           manifest.skills.contains(where: { normalizedSkillDirectoryPath($0) == skillPath }) {
+            return manifest.name
+        }
+
+        if let manifest = decodeJSON(MarketplaceManifest.self, from: marketplaceJSON) {
+            for plugin in manifest.plugins {
+                let skillPaths = plugin.skills ?? plugin.source?.skills ?? []
+                if skillPaths.contains(where: { normalizedSkillDirectoryPath($0) == skillPath }) {
+                    return plugin.displayName ?? plugin.name ?? plugin.source?.name
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private func relativeSkillParent(_ relativePath: String, root: URL) -> URL? {
+        let normalized = normalizedRelativePath(relativePath)
+        guard !normalized.isEmpty, !normalized.hasPrefix("../") else { return nil }
+
+        let skillURL = root.appendingPathComponent(normalized).standardizedFileURL
+        guard isContained(skillURL, in: root) else { return nil }
+
+        let candidate = skillURL.lastPathComponent == "SKILL.md"
+            ? skillURL.deletingLastPathComponent()
+            : skillURL
+        return directoryExists(candidate) ? candidate : nil
+    }
+
+    private func normalizedRelativePath(_ path: String) -> String {
+        var normalized = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        while normalized.hasPrefix("./") {
+            normalized = String(normalized.dropFirst(2))
+        }
+        while normalized.hasSuffix("/") {
+            normalized = String(normalized.dropLast())
+        }
+        return normalized
+    }
+
+    private func normalizedSkillDirectoryPath(_ path: String) -> String {
+        let normalized = normalizedRelativePath(path)
+        return normalized.hasSuffix("/SKILL.md")
+            ? String(normalized.dropLast("/SKILL.md".count))
+            : normalized
+    }
+
+    private func isContained(_ url: URL, in root: URL) -> Bool {
+        let rootPath = root.standardizedFileURL.path()
+        let urlPath = url.standardizedFileURL.path()
+        return urlPath == rootPath || urlPath.hasPrefix(rootPath + "/")
+    }
+
+    private func uniqueDirectories(_ directories: [URL]) -> [URL] {
+        var seen = Set<String>()
+        var result: [URL] = []
+
+        for directory in directories {
+            let path = directory.standardizedFileURL.path()
+            guard !seen.contains(path) else { continue }
+            seen.insert(path)
+            result.append(directory)
+        }
+
+        return result
+    }
+
+    private func decodeJSON<T: Decodable>(_ type: T.Type, from url: URL) -> T? {
+        guard FileManager.default.fileExists(atPath: url.path()),
+              let data = try? Data(contentsOf: url)
+        else {
+            return nil
+        }
+        return try? JSONDecoder().decode(type, from: data)
     }
 
     // MARK: - Git Process

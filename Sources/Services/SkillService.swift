@@ -69,6 +69,8 @@ struct SkillService: Sendable {
             description: frontmatter.description,
             author: frontmatter.author,
             version: frontmatter.version,
+            metadataInternal: frontmatter.metadataInternal,
+            pluginName: frontmatter.pluginName,
             content: frontmatter.bodyContent,
             ruleFiles: ruleFiles,
             sourceURL: sourceURL,
@@ -128,6 +130,7 @@ struct SkillService: Sendable {
                 directoryName: dirName,
                 directoryURL: destination,
                 name: "", description: "", author: nil, version: nil,
+                metadataInternal: false, pluginName: nil,
                 content: "", ruleFiles: [], sourceURL: nil,
                 createdAt: .distantPast, modifiedAt: .distantPast
             ))
@@ -186,8 +189,8 @@ struct SkillService: Sendable {
 
         let linkPath = agent.skillsDirectory.appendingPathComponent(skill.directoryName)
 
-        // Remove existing link if any
-        if FileManager.default.fileExists(atPath: linkPath.path()) {
+        // Remove existing item, including broken symlinks that `fileExists` does not report.
+        if itemOrSymlinkExists(at: linkPath) {
             try FileManager.default.removeItem(at: linkPath)
         }
 
@@ -199,7 +202,7 @@ struct SkillService: Sendable {
 
     func unlinkSkill(_ skill: Skill, from agent: Agent) throws {
         let linkPath = agent.skillsDirectory.appendingPathComponent(skill.directoryName)
-        if FileManager.default.fileExists(atPath: linkPath.path()) {
+        if itemOrSymlinkExists(at: linkPath) {
             try FileManager.default.removeItem(at: linkPath)
         }
     }
@@ -207,12 +210,8 @@ struct SkillService: Sendable {
     func linkStatus(for skill: Skill, agent: Agent) -> LinkStatus {
         let linkPath = agent.skillsDirectory.appendingPathComponent(skill.directoryName)
 
-        guard FileManager.default.fileExists(atPath: linkPath.path()) else {
-            return .notLinked
-        }
-
         guard let destination = try? FileManager.default.destinationOfSymbolicLink(atPath: linkPath.path()) else {
-            return .broken
+            return itemOrSymlinkExists(at: linkPath) ? .broken : .notLinked
         }
 
         return destination == skill.directoryURL.path() ? .linked : .broken
@@ -265,6 +264,14 @@ struct SkillService: Sendable {
 
     func syncAll(agents: [Agent]) throws -> [String] {
         var repairs: [String] = []
+        let skills = scan()
+
+        for agent in agents {
+            for skill in skills where linkStatus(for: skill, agent: agent) != .linked {
+                try linkSkill(skill, to: agent)
+                repairs.append("\(agent.name)/\(skill.directoryName)")
+            }
+        }
 
         for agent in agents {
             guard let contents = try? FileManager.default.contentsOfDirectory(
@@ -282,7 +289,9 @@ struct SkillService: Sendable {
                     let linkName = linkURL.lastPathComponent
                     let hubSkill = hubDirectory.appendingPathComponent(linkName)
                     if FileManager.default.fileExists(atPath: hubSkill.path()) {
-                        try FileManager.default.removeItem(at: linkURL)
+                        if itemOrSymlinkExists(at: linkURL) {
+                            try FileManager.default.removeItem(at: linkURL)
+                        }
                         try FileManager.default.createSymbolicLink(
                             atPath: linkURL.path(),
                             withDestinationPath: hubSkill.path()
@@ -294,6 +303,11 @@ struct SkillService: Sendable {
         }
 
         return repairs
+    }
+
+    private func itemOrSymlinkExists(at url: URL) -> Bool {
+        FileManager.default.fileExists(atPath: url.path())
+            || (try? FileManager.default.destinationOfSymbolicLink(atPath: url.path())) != nil
     }
 
     // MARK: - Search

@@ -11,6 +11,7 @@ struct AddSkillView: View {
     @State private var errorMessage: String?
     @State private var importedSkills: [Skill] = []
     @State private var showingFolderPicker = false
+    @State private var selectedSkillIDs = Set<String>()
 
     enum Tab: String, CaseIterable, Identifiable {
         case local
@@ -58,6 +59,9 @@ struct AddSkillView: View {
             }
         }
         .frame(minWidth: 560, minHeight: 400)
+        .onDisappear {
+            manager.cleanupDiscovery()
+        }
     }
 
     // MARK: - Local Tab
@@ -132,25 +136,25 @@ struct AddSkillView: View {
 
                 HStack(spacing: 8) {
                     TextField(
-                        "https://github.com/org/repo",
+                        "owner/repo or https://github.com/org/repo",
                         text: $gitURL
                     )
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
 
-                    Button(L.string("ui.action.import", using: lm)) {
-                        importFromGit()
+                    Button(L.string("ui.action.discover", using: lm)) {
+                        discoverFromGit()
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(gitURL.isEmpty || isLoading)
+                    .disabled(gitURL.isEmpty || manager.isDiscovering)
                 }
             }
 
-            if isLoading {
+            if manager.isDiscovering {
                 HStack(spacing: 8) {
                     ProgressView()
                         .controlSize(.small)
-                    L.text("ui.add_skill.cloning", using: lm)
+                    L.text("ui.add_skill.discovering", using: lm)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -162,6 +166,12 @@ struct AddSkillView: View {
                     .foregroundStyle(.red)
             }
 
+            // Discovered skills selection
+            if !manager.discoveredSkills.isEmpty {
+                discoveredSkillsList
+            }
+
+            // Import result
             if !importedSkills.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     L.text("ui.add_skill.imported_count", [Int64(importedSkills.count)], using: lm)
@@ -190,10 +200,12 @@ struct AddSkillView: View {
                 L.text("ui.add_skill.supported_formats", using: lm)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
+                Text("owner/repo")
                 Text("github.com/{owner}/{repo}")
                 Text("github.com/{owner}/{repo}/tree/{branch}/{path}")
                 Text("gitlab.com/{owner}/{repo}/-/tree/{branch}/{path}")
                 Text("bitbucket.org/{owner}/{repo}/src/{branch}/{path}")
+                Text("git@github.com:{owner}/{repo}.git")
             }
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -203,22 +215,105 @@ struct AddSkillView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func importFromGit() {
+    private var discoveredSkillsList: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                L.text("ui.add_skill.discovered_count", [Int64(manager.discoveredSkills.count)], using: lm)
+                    .font(.caption.bold())
+                Spacer()
+                Button(L.string("ui.action.select_all", using: lm)) {
+                    selectedSkillIDs = Set(manager.discoveredSkills.map(\.id))
+                }
+                .font(.caption)
+                Button(L.string("ui.action.deselect_all", using: lm)) {
+                    selectedSkillIDs.removeAll()
+                }
+                .font(.caption)
+            }
+
+            ForEach(manager.discoveredSkills) { discovered in
+                HStack(spacing: 8) {
+                    Toggle("", isOn: Binding(
+                        get: { selectedSkillIDs.contains(discovered.id) },
+                        set: { isSelected in
+                            if isSelected {
+                                selectedSkillIDs.insert(discovered.id)
+                            } else {
+                                selectedSkillIDs.remove(discovered.id)
+                            }
+                        }
+                    ))
+                    .toggleStyle(.checkbox)
+                    .labelsHidden()
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(discovered.name)
+                                .font(.subheadline.weight(.medium))
+                            if discovered.metadataInternal {
+                                Text(L.string("ui.badge.internal", using: lm))
+                                    .font(.caption2.weight(.semibold))
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1)
+                                    .background(.orange.opacity(0.2), in: Capsule())
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                        Text(discovered.description)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                        if let pluginName = discovered.pluginName {
+                            Text(pluginName)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+
+            Button(L.string("ui.action.import_selected", using: lm)) {
+                importSelectedFromGit()
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(selectedSkillIDs.isEmpty || isLoading)
+        }
+        .padding(10)
+        .background(.blue.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func discoverFromGit() {
+        errorMessage = nil
+        importedSkills = []
+        selectedSkillIDs.removeAll()
+
+        Task {
+            await manager.discoverSkills(fromGitURL: gitURL)
+            // Select all by default
+            selectedSkillIDs = Set(manager.discoveredSkills.map(\.id))
+            if manager.discoveredSkills.isEmpty {
+                errorMessage = L.string("error.no_skills_found", using: lm)
+            }
+        }
+    }
+
+    private func importSelectedFromGit() {
         errorMessage = nil
         importedSkills = []
         isLoading = true
 
         Task {
-            do {
-                let skills = try await manager.addSkills(fromGitURL: gitURL)
-                importedSkills = skills
-                if skills.isEmpty {
-                    errorMessage = L.string("error.no_valid_skills", using: lm)
-                }
-            } catch {
-                errorMessage = error.localizedDescription
-            }
+            let skills = await manager.importDiscoveredSkills(
+                selectedIDs: selectedSkillIDs,
+                sourceGitURL: gitURL
+            )
+            importedSkills = skills
+            selectedSkillIDs.removeAll()
             isLoading = false
+            if skills.isEmpty {
+                errorMessage = L.string("error.no_valid_skills", using: lm)
+            }
         }
     }
 }

@@ -17,6 +17,10 @@ struct Skill: Identifiable, Hashable, Sendable {
     let author: String?
     let version: String?
 
+    /// Extended metadata (vercel-labs/skills compatible)
+    let metadataInternal: Bool
+    let pluginName: String?
+
     /// Raw content of SKILL.md (frontmatter stripped)
     let content: String
 
@@ -50,6 +54,8 @@ struct SkillFrontmatter: Sendable {
     let description: String
     let author: String?
     let version: String?
+    let metadataInternal: Bool
+    let pluginName: String?
     let bodyContent: String
 
     /// Parses YAML frontmatter from SKILL.md content.
@@ -57,16 +63,16 @@ struct SkillFrontmatter: Sendable {
     static func parse(_ raw: String) -> SkillFrontmatter? {
         let lines = raw.split(separator: "\n", omittingEmptySubsequences: false)
 
-        // Find the closing --- delimiter (use lastIndex to skip opening ---)
-        guard let closingIndex = lines.lastIndex(of: "---") else {
+        let startsWithDelimiter = lines.first?.trimmingCharacters(in: .whitespaces) == "---"
+        let searchStart = startsWithDelimiter ? 1 : 0
+        guard let closingIndex = lines[searchStart...].firstIndex(where: {
+            $0.trimmingCharacters(in: .whitespaces) == "---"
+        }) else {
             return nil
         }
 
-        // Frontmatter is everything before the closing ---
-        let frontmatterLines = lines[..<closingIndex]
-            .map(String.init)
-            // If opening --- exists, skip it
-            .drop(while: { $0.trimmingCharacters(in: .whitespaces) == "---" })
+        let frontmatterStart = startsWithDelimiter ? 1 : 0
+        let frontmatterLines = lines[frontmatterStart..<closingIndex].map(String.init)
 
         // Body is everything after the closing ---
         let bodyStart = closingIndex + 1
@@ -78,30 +84,55 @@ struct SkillFrontmatter: Sendable {
         var description: String?
         var author: String?
         var version: String?
+        var metadataInternal = false
+        var pluginName: String?
 
+        // Track nested metadata block via indentation
         var inMetadata = false
+        var metadataIndent = 0
 
         for line in frontmatterLines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty { continue }
 
-            if trimmed.hasPrefix("name:") {
-                name = trimmed.dropFirst(5).trimmingCharacters(in: .whitespaces)
-                    .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            // Calculate leading whitespace for indentation tracking
+            let leadingSpaces = line.prefix(while: { $0 == " " || $0 == "\t" }).count
+
+            // Top-level keys
+            if !inMetadata || leadingSpaces <= metadataIndent {
                 inMetadata = false
-            } else if trimmed.hasPrefix("description:") {
-                description = trimmed.dropFirst(12).trimmingCharacters(in: .whitespaces)
-                    .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-                inMetadata = false
-            } else if trimmed == "metadata:" {
-                inMetadata = true
-            } else if inMetadata && trimmed.hasPrefix("author:") {
-                author = trimmed.dropFirst(7).trimmingCharacters(in: .whitespaces)
-                    .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-            } else if inMetadata && trimmed.hasPrefix("version:") {
-                version = trimmed.dropFirst(8).trimmingCharacters(in: .whitespaces)
-                    .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-            } else if !trimmed.contains(":") || (!trimmed.hasPrefix(" ") && !inMetadata) {
-                inMetadata = false
+
+                if trimmed.hasPrefix("name:") {
+                    name = Self.stripQuotes(trimmed.dropFirst(5))
+                } else if trimmed.hasPrefix("description:") {
+                    description = Self.stripQuotes(trimmed.dropFirst(12))
+                } else if trimmed == "metadata:" || trimmed.hasPrefix("metadata:") {
+                    let afterKey = trimmed.dropFirst(9).trimmingCharacters(in: .whitespaces)
+                    if afterKey.isEmpty {
+                        inMetadata = true
+                        metadataIndent = leadingSpaces
+                    } else {
+                        let inline = Self.parseInlineMap(String(afterKey))
+                        if let val = inline["internal"]?.lowercased() {
+                            metadataInternal = (val == "true" || val == "1")
+                        }
+                        author = inline["author"] ?? author
+                        version = inline["version"] ?? version
+                        pluginName = inline["pluginName"] ?? inline["plugin_name"] ?? pluginName
+                    }
+                }
+            } else {
+                // Inside metadata: block
+                if trimmed.hasPrefix("internal:") {
+                    let val = Self.stripQuotes(trimmed.dropFirst(9)).lowercased()
+                    metadataInternal = (val == "true" || val == "1")
+                } else if trimmed.hasPrefix("author:") {
+                    author = Self.stripQuotes(trimmed.dropFirst(7))
+                } else if trimmed.hasPrefix("version:") {
+                    version = Self.stripQuotes(trimmed.dropFirst(8))
+                } else if trimmed.hasPrefix("pluginName:") {
+                    pluginName = Self.stripQuotes(trimmed.dropFirst(11))
+                }
             }
         }
 
@@ -112,7 +143,29 @@ struct SkillFrontmatter: Sendable {
             description: description,
             author: author,
             version: version,
+            metadataInternal: metadataInternal,
+            pluginName: pluginName,
             bodyContent: bodyContent
         )
+    }
+
+    private static func stripQuotes(_ substring: Substring) -> String {
+        substring.trimmingCharacters(in: .whitespaces)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+    }
+
+    private static func parseInlineMap(_ raw: String) -> [String: String] {
+        let trimmed = raw
+            .trimmingCharacters(in: .whitespaces)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "{}"))
+
+        return trimmed.split(separator: ",").reduce(into: [:]) { result, pair in
+            let parts = pair.split(separator: ":", maxSplits: 1).map {
+                $0.trimmingCharacters(in: .whitespaces)
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            }
+            guard parts.count == 2 else { return }
+            result[parts[0]] = parts[1]
+        }
     }
 }

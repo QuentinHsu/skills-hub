@@ -48,10 +48,20 @@
 "ui.add_skill.import_git_hint" = "粘贴包含 SKILL.md 的技能目录 URL。";
 "ui.add_skill.repository_url" = "仓库 URL";
 "ui.action.import" = "导入";
+"ui.action.discover" = "发现";
+"ui.action.import_selected" = "导入选中";
+"ui.action.select_all" = "全选";
+"ui.action.deselect_all" = "取消全选";
 "ui.add_skill.cloning" = "正在克隆并发现技能...";
+"ui.add_skill.discovering" = "正在从仓库中发现技能...";
+"ui.add_skill.discovered_count" = "已发现 %lld 个技能：";
 "ui.add_skill.imported_count" = "已导入 %lld 个技能：";
+"ui.badge.internal" = "内部";
 "error.no_valid_skills" = "在指定路径中未找到有效技能。";
+"error.discovery_failed" = "从仓库发现技能失败。";
 "ui.add_skill.supported_formats" = "支持的 URL 格式：";
+"status.discovering" = "正在发现技能...";
+"status.importing_selected" = "正在导入选中的技能...";
 
 /* AgentView */
 "ui.agent.preset_agents" = "预设智能体";

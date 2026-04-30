@@ -11,6 +11,11 @@ final class SkillManager {
     var statusMessageKey: String?
     var statusMessageArg: Int64?
 
+    /// Discovery state for selective import
+    var discoveredSkills: [GitService.DiscoveredSkill] = []
+    var discoveryStagingURL: URL?
+    var isDiscovering: Bool = false
+
     let skillService: SkillService
     let gitService: GitService
     let configService: ConfigService
@@ -59,6 +64,7 @@ final class SkillManager {
 
     func scan() {
         skills = skillService.scan()
+        ensureAllSkillsLinkedToEnabledAgents()
     }
 
     // MARK: - Add Skill
@@ -67,7 +73,7 @@ final class SkillManager {
         let skill = try skillService.addSkill(from: dir)
         skills.append(skill)
         sortSkills()
-        linkSkillToAllAgents(skill)
+        ensureAllSkillsLinkedToEnabledAgents()
     }
 
     func addSkills(fromGitURL gitURLString: String) async throws -> [Skill] {
@@ -105,9 +111,86 @@ final class SkillManager {
             }
         }
         sortSkills()
-        linkSkillsToAllAgents(addedSkills)
+        ensureAllSkillsLinkedToEnabledAgents()
 
         return addedSkills
+    }
+
+    // MARK: - Discovery (list before import)
+
+    /// Discover skills from a remote repo without importing. Results stored in `discoveredSkills`.
+    func discoverSkills(fromGitURL gitURLString: String) async {
+        isDiscovering = true
+        statusMessageKey = "status.discovering"
+        discoveredSkills = []
+        cleanupDiscovery()
+
+        defer {
+            isDiscovering = false
+            statusMessageKey = nil
+        }
+
+        do {
+            let info = try gitService.parseURL(gitURLString)
+            let result = try await gitService.discoverSkills(from: info)
+            discoveredSkills = result.skills
+            discoveryStagingURL = result.stagingDirectory
+
+            if result.skills.isEmpty {
+                statusMessageKey = "error.no_skills_found"
+            }
+        } catch {
+            statusMessageKey = "error.discovery_failed"
+        }
+    }
+
+    /// Import selected skills from the previously discovered set.
+    func importDiscoveredSkills(selectedIDs: Set<String>, sourceGitURL: String) async -> [Skill] {
+        isLoading = true
+        statusMessageKey = "status.importing_selected"
+        defer {
+            isLoading = false
+            statusMessageKey = nil
+            statusMessageArg = nil
+        }
+
+        let toImport = discoveredSkills.filter { selectedIDs.contains($0.id) }
+        var addedSkills: [Skill] = []
+
+        for discovered in toImport {
+            do {
+                let skill = try skillService.addSkill(
+                    from: discovered.stagedDirectory,
+                    sourceGitURL: URL(string: sourceGitURL)
+                )
+                addedSkills.append(skill)
+            } catch {
+                continue
+            }
+        }
+
+        cleanupDiscovery()
+
+        for skill in addedSkills {
+            if let idx = skills.firstIndex(where: { $0.directoryName == skill.directoryName }) {
+                skills[idx] = skill
+            } else {
+                skills.append(skill)
+            }
+        }
+        sortSkills()
+        ensureAllSkillsLinkedToEnabledAgents()
+
+        return addedSkills
+    }
+
+    /// Clean up the discovery staging directory.
+    func cleanupDiscovery() {
+        if let url = discoveryStagingURL {
+            try? FileManager.default.removeItem(at: url)
+            discoveryStagingURL = nil
+        }
+        discoveredSkills = []
     }
 
     // MARK: - Remove Skill
@@ -160,6 +243,7 @@ final class SkillManager {
         }
 
         let repairs = try skillService.syncAll(agents: agents)
+        scan()
         if repairs.isEmpty {
             statusMessageKey = "status.all_links_valid"
         } else {
@@ -218,12 +302,6 @@ final class SkillManager {
 
     // MARK: - Link Helpers
 
-    private func linkSkillToAllAgents(_ skill: Skill) {
-        for agent in agents {
-            try? skillService.linkSkill(skill, to: agent)
-        }
-    }
-
     private func linkSkillsToAllAgents(_ skills: [Skill]) {
         for agent in agents {
             for skill in skills {
@@ -236,6 +314,11 @@ final class SkillManager {
         for skill in skills {
             try? skillService.linkSkill(skill, to: agent)
         }
+    }
+
+    private func ensureAllSkillsLinkedToEnabledAgents() {
+        guard !agents.isEmpty, !skills.isEmpty else { return }
+        linkSkillsToAllAgents(skills)
     }
 
     private func unlinkAllSkills(from agent: Agent) {
