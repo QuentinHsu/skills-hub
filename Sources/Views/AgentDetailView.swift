@@ -32,9 +32,7 @@ private struct AgentDetailRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Image(systemName: agent.iconName)
-                    .foregroundStyle(.blue)
-                    .font(.title2)
+                AgentLogo(agent: agent, size: 24, fallbackColor: .blue)
                 VStack(alignment: .leading) {
                     Text(agent.displayName)
                         .font(.headline)

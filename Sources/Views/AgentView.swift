@@ -84,9 +84,7 @@ private struct BuiltInAgentRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: agent.iconName)
-                .font(.title2)
-                .foregroundStyle(isEnabled ? .blue : .secondary)
+            AgentLogo(builtInAgent: agent, size: 24, isEnabled: isEnabled)
                 .frame(width: 32)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -119,9 +117,7 @@ private struct CustomAgentRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "app.connected.to.app.below.fill")
-                .font(.title2)
-                .foregroundStyle(.secondary)
+            AgentLogo(agent: agent, size: 24)
                 .frame(width: 32)
 
             VStack(alignment: .leading, spacing: 2) {

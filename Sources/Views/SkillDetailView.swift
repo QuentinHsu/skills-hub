@@ -139,11 +139,16 @@ private struct SkillDetailContent: View {
             }
 
             // Linked agents
-            if !manager.agents.isEmpty {
-                HStack(spacing: 6) {
+            if !linkedAgents.isEmpty {
+                HStack(spacing: 8) {
                     Image(systemName: "link")
                         .foregroundStyle(.green)
-                    L.text("ui.skill.linked_to", manager.agents.map(\.displayName).joined(separator: ", "), using: lm)
+                    HStack(spacing: 6) {
+                        ForEach(linkedAgents) { agent in
+                            AgentLogo(agent: agent, size: 16)
+                                .help(agent.displayName)
+                        }
+                    }
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -157,6 +162,10 @@ private struct SkillDetailContent: View {
                 .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var linkedAgents: [Agent] {
+        manager.skillService.linkedAgents(for: skill, agents: manager.agents)
     }
 
     @ViewBuilder

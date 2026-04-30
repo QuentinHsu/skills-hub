@@ -51,6 +51,15 @@ enum BuiltInAgent: String, CaseIterable, Identifiable {
         }
     }
 
+    var logoName: String {
+        switch self {
+        case .claudeCode: "claude"
+        case .codex: "codex"
+        case .cursor: "cursor"
+        case .vscode: "copilot"
+        }
+    }
+
     var skillsDirectoryName: String {
         switch self {
         case .claudeCode: ".claude/skills"

@@ -48,8 +48,11 @@ struct SidebarView: View {
             if !manager.agents.isEmpty {
                 Section(L.string("ui.sidebar.agents_count", Int64(manager.agents.count), using: lm)) {
                     ForEach(manager.agents) { agent in
-                        Label(agent.displayName, systemImage: agent.iconName)
-                            .tag(SidebarItem.agent(agent))
+                        HStack(spacing: 6) {
+                            AgentLogo(agent: agent, size: 16)
+                            Text(agent.displayName)
+                        }
+                        .tag(SidebarItem.agent(agent))
                     }
                 }
             }
