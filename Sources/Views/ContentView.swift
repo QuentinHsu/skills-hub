@@ -3,14 +3,14 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(LocalizationManager.self) private var lm
-    @State private var manager = SkillManager()
+    @Environment(\.openWindow) private var openWindow
+    @Bindable var manager: SkillManager
     @State private var detailItem: SidebarItem?
     @State private var selectedBatchItems = Set<SidebarItem>()
     @State private var isEditing = false
     @State private var showBatchDeleteConfirm = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
     @State private var showingAddSkill = false
-    @State private var showingSettings = false
     @State private var showingCopyPanel = false
 
     private var selectedSkill: Skill? {
@@ -63,10 +63,6 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingAddSkill) {
             AddSkillView(manager: manager)
-                .environment(lm)
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView(manager: manager)
                 .environment(lm)
         }
         .fileImporter(
@@ -182,7 +178,7 @@ struct ContentView: View {
 
         ToolbarItem(placement: .primaryAction) {
             Button {
-                showingSettings = true
+                openWindow(id: AppWindowID.settings)
             } label: {
                 Label(L.string("ui.settings.title", using: lm), systemImage: "gearshape")
             }
