@@ -36,6 +36,8 @@
 "ui.skill.linked_to" = "Linked to: %@";
 "ui.skill.rules_count" = "Rules (%lld)";
 "ui.skill.open_in_finder" = "Open in Finder";
+"ui.skill.show_source" = "Show Markdown source";
+"ui.skill.render_markdown" = "Render Markdown";
 
 /* AddSkillView */
 "ui.add_skill.title" = "Add Skill";

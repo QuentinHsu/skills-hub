@@ -36,6 +36,8 @@
 "ui.skill.linked_to" = "已关联：%@";
 "ui.skill.rules_count" = "规则 (%lld)";
 "ui.skill.open_in_finder" = "在 Finder 中打开";
+"ui.skill.show_source" = "显示 Markdown 源码";
+"ui.skill.render_markdown" = "渲染 Markdown";
 
 /* AddSkillView */
 "ui.add_skill.title" = "添加技能";

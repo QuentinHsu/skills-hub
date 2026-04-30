@@ -24,6 +24,7 @@ private struct SkillDetailContent: View {
     let manager: SkillManager
     let skill: Skill
     let lm: LocalizationManager
+    @State private var isRenderingMarkdown = true
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -43,6 +44,11 @@ private struct SkillDetailContent: View {
                 }
             }
             .padding()
+            .padding(.bottom, 48)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            renderModeButton
+                .padding(20)
         }
         .navigationTitle("Skills Hub")
         .toolbar {
@@ -66,6 +72,26 @@ private struct SkillDetailContent: View {
                 }
             }
         }
+    }
+
+    private var renderModeButton: some View {
+        Button {
+            isRenderingMarkdown.toggle()
+        } label: {
+            Image(systemName: isRenderingMarkdown ? "chevron.left.forwardslash.chevron.right" : "doc.richtext")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.primary)
+                .frame(width: 38, height: 38)
+                .background(.regularMaterial, in: Circle())
+                .overlay {
+                    Circle()
+                        .stroke(Color.skillMarkdownBorder, lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+        .help(L.string(isRenderingMarkdown ? "ui.skill.show_source" : "ui.skill.render_markdown", using: lm))
+        .accessibilityLabel(L.string(isRenderingMarkdown ? "ui.skill.show_source" : "ui.skill.render_markdown", using: lm))
     }
 
     private var header: some View {
@@ -133,8 +159,13 @@ private struct SkillDetailContent: View {
         }
     }
 
+    @ViewBuilder
     private var skillContent: some View {
-        MarkdownContentView(markdown: skill.content, baseURL: skill.directoryURL)
+        if isRenderingMarkdown {
+            MarkdownContentView(markdown: skill.content, baseURL: skill.directoryURL)
+        } else {
+            CodeContentView(code: skill.content)
+        }
     }
 
     private var rulesSection: some View {
@@ -179,6 +210,27 @@ private struct MarkdownContentView: View {
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 2)
+    }
+}
+
+private struct CodeContentView: View {
+    let code: String
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            Text(code)
+                .font(.system(.body, design: .monospaced))
+                .textSelection(.enabled)
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.skillMarkdownBlockBackground, in: RoundedRectangle(cornerRadius: 6))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color.skillMarkdownBorder, lineWidth: 1)
+        }
     }
 }
 
