@@ -22,6 +22,7 @@
 "ui.hint.no_skills" = "点击 + 从本地文件或 Git 仓库添加技能。";
 "ui.sidebar.skills_count" = "技能 (%lld)";
 "ui.sidebar.agents_count" = "智能体 (%lld)";
+"ui.sidebar.local_source" = "本地";
 "time.just_now" = "刚刚";
 "time.minutes_ago" = "%lld分钟前";
 "time.hours_ago" = "%lld小时前";

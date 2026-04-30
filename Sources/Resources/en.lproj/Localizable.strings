@@ -22,6 +22,7 @@
 "ui.hint.no_skills" = "Click + to add skills from local files or Git repositories.";
 "ui.sidebar.skills_count" = "Skills (%lld)";
 "ui.sidebar.agents_count" = "Agents (%lld)";
+"ui.sidebar.local_source" = "Local";
 "time.just_now" = "just now";
 "time.minutes_ago" = "%lldm ago";
 "time.hours_ago" = "%lldh ago";

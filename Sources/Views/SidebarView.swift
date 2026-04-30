@@ -96,15 +96,7 @@ private struct SkillRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             HStack(spacing: 4) {
-                if let author = skill.author {
-                    Text(author)
-                }
-                if skill.author != nil && skill.version != nil {
-                    Text("·")
-                }
-                if let version = skill.version {
-                    Text("v\(version)")
-                }
+                Text(skill.sourceRepositoryDisplayName(using: lm))
                 Text("·")
                 TimelineView(.periodic(from: .now, by: 60)) { _ in
                     Text(skill.modifiedAt.localizedRelative())
@@ -114,6 +106,41 @@ private struct SkillRow: View {
             .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 2)
+    }
+}
+
+private extension Skill {
+    @MainActor
+    func sourceRepositoryDisplayName(using lm: LocalizationManager) -> String {
+        guard let sourceURL else {
+            return L.string("ui.sidebar.local_source", using: lm)
+        }
+
+        var raw = sourceURL.absoluteString
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: #"^https?://"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"^ssh://"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"^git@"#, with: "", options: .regularExpression)
+
+        raw = raw.replacingOccurrences(of: ":", with: "/")
+
+        let path = raw.split(separator: "?").first.map(String.init) ?? raw
+        let parts = path.split(separator: "/").map(String.init)
+        let hostOffset = parts.first?.contains(".") == true ? 1 : 0
+
+        guard parts.count >= hostOffset + 2 else {
+            return sourceURL.lastPathComponent.isEmpty ? raw : sourceURL.lastPathComponent
+        }
+
+        let owner = parts[hostOffset]
+        let repo = parts[hostOffset + 1].removingGitSuffix()
+        return "\(owner)/\(repo)"
+    }
+}
+
+private extension String {
+    func removingGitSuffix() -> String {
+        hasSuffix(".git") ? String(dropLast(4)) : self
     }
 }
 
