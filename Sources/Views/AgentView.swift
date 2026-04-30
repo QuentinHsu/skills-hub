@@ -163,43 +163,115 @@ struct AddCustomAgentView: View {
 
     @State private var name = ""
     @State private var path = ""
+    @FocusState private var focusedField: Field?
+
+    private enum Field {
+        case name
+        case path
+    }
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section(L.string("ui.agent.info", using: lm)) {
-                    TextField(L.string("ui.agent.display_name", using: lm), text: $name)
-                    HStack {
-                        TextField(L.string("ui.agent.skills_dir_path", using: lm), text: $path)
-                            .textFieldStyle(.roundedBorder)
-                        Button(L.string("ui.action.browse", using: lm)) {
-                            selectDirectory { url in
-                                path = url.path()
+            List {
+                Section {
+                    labeledTextField(
+                        title: L.string("ui.agent.display_name", using: lm),
+                        text: $name,
+                        field: .name
+                    )
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        L.text("ui.agent.skills_dir_path", using: lm)
+                            .font(.subheadline.weight(.medium))
+
+                        HStack(spacing: 8) {
+                            TextField(L.string("ui.agent.skills_dir_path", using: lm), text: $path)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(.body, design: .monospaced))
+                                .focused($focusedField, equals: .path)
+
+                            Button {
+                                selectDirectory { url in
+                                    path = displayPath(for: url)
+                                }
+                            } label: {
+                                Label(L.string("ui.action.browse", using: lm), systemImage: "folder")
                             }
+                            .labelStyle(.iconOnly)
+                            .help(L.string("ui.action.browse", using: lm))
                         }
                     }
+                    .padding(.vertical, 2)
+                } header: {
+                    L.text("ui.agent.info", using: lm)
                 }
             }
-            .formStyle(.grouped)
-            .padding()
+            .listStyle(.inset)
             .navigationTitle(L.string("ui.agent.add_custom", using: lm))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L.string("ui.action.cancel", using: lm)) { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button(L.string("ui.action.add", using: lm)) {
-                        let resolved = path.hasPrefix("~")
-                            ? path.replacingOccurrences(of: "~", with: FileManager.default.homeDirectoryForCurrentUser.path())
-                            : path
-                        manager.addCustomAgent(name: name, directory: URL(fileURLWithPath: resolved))
-                        dismiss()
-                    }
-                    .disabled(name.isEmpty || path.isEmpty)
+                    Button(L.string("ui.action.add", using: lm), action: addCustomAgent)
+                        .disabled(!canAdd)
                 }
             }
+            .onAppear {
+                focusedField = .name
+            }
         }
-        .frame(width: 420, height: 200)
+        .frame(width: 520, height: 260)
+    }
+
+    private var canAdd: Bool {
+        !trimmedName.isEmpty && !trimmedPath.isEmpty
+    }
+
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var trimmedPath: String {
+        path.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func labeledTextField(title: String, text: Binding<String>, field: Field) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+
+            TextField(title, text: text)
+                .textFieldStyle(.roundedBorder)
+                .focused($focusedField, equals: field)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func addCustomAgent() {
+        guard canAdd else { return }
+
+        manager.addCustomAgent(name: trimmedName, directory: URL(fileURLWithPath: resolvedPath()))
+        dismiss()
+    }
+
+    private func resolvedPath() -> String {
+        NSString(string: trimmedPath).expandingTildeInPath
+    }
+
+    private func displayPath(for url: URL) -> String {
+        let path = url.standardizedFileURL.path()
+        let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path()
+
+        if path == home {
+            return "~"
+        }
+
+        if path.hasPrefix(home + "/") {
+            return "~" + path.dropFirst(home.count)
+        }
+
+        return path
     }
 
     private func selectDirectory(_ handler: @escaping (URL) -> Void) {
