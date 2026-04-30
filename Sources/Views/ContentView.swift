@@ -197,6 +197,7 @@ struct ContentView: View {
             } description: {
                 L.text("ui.hint.select_from_sidebar", using: lm)
             }
+            .navigationTitle("Skills Hub")
         }
     }
 }

@@ -12,13 +12,14 @@ struct AgentDetailView: View {
             } description: {
                 L.text("ui.hint.no_agents", using: lm)
             }
+            .navigationTitle("Skills Hub")
         } else {
             List(manager.agents, selection: $selectedAgent) { agent in
                 AgentDetailRow(manager: manager, agent: agent, lm: lm)
                     .tag(agent)
             }
             .listStyle(.inset)
-            .navigationTitle(L.string("ui.label.agents", using: lm))
+            .navigationTitle("Skills Hub")
         }
     }
 }

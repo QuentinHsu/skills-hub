@@ -14,6 +14,7 @@ struct SkillDetailView: View {
             } description: {
                 L.text("ui.hint.select_skill_preview", using: lm)
             }
+            .navigationTitle("Skills Hub")
         }
     }
 }
@@ -42,7 +43,7 @@ private struct SkillDetailContent: View {
             }
             .padding()
         }
-        .navigationTitle(skill.name)
+        .navigationTitle("Skills Hub")
         .toolbar {
             ToolbarItemGroup(placement: .secondaryAction) {
                 Button {
