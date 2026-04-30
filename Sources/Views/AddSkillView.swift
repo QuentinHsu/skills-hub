@@ -268,6 +268,9 @@ struct AddSkillView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                         }
+                        Text(discovered.relativePath)
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(.tertiary)
                     }
                 }
                 .padding(.vertical, 2)

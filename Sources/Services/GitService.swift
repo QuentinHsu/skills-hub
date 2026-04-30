@@ -93,7 +93,8 @@ struct GitService: Sendable {
 
     func parseURL(_ urlString: String) throws -> GitRepoInfo {
         // Normalize: strip trailing slash
-        let normalized = urlString.hasSuffix("/") ? String(urlString.dropLast()) : urlString
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = trimmed.hasSuffix("/") ? String(trimmed.dropLast()) : trimmed
         let knownHostPrefixes = ["github.com/", "gitlab.com/", "bitbucket.org/"]
         let parseTarget = knownHostPrefixes.contains(where: { normalized.hasPrefix($0) })
             ? "https://\(normalized)"
@@ -123,7 +124,7 @@ struct GitService: Sendable {
             let owner = pathParts[0]
             let repo = pathParts[1].hasSuffix(".git") ? String(pathParts[1].dropLast(4)) : pathParts[1]
             let cloneURL = URL(string: "\(scheme)://\(host)/\(owner)/\(repo).git")!
-            return GitRepoInfo(owner: owner, repo: repo, branch: "main", path: "", cloneURL: cloneURL, skillFilter: nil)
+            return GitRepoInfo(owner: owner, repo: repo, branch: "", path: "", cloneURL: cloneURL, skillFilter: nil)
         }
 
         let treeKeyword: String
@@ -180,7 +181,7 @@ struct GitService: Sendable {
         let path = parts.count > 2 ? parts[2...].joined(separator: "/") : ""
         let cloneURL = URL(string: "https://\(host)/\(owner)/\(repo).git")!
 
-        return GitRepoInfo(owner: owner, repo: repo, branch: "main", path: path, cloneURL: cloneURL, skillFilter: skillFilter)
+        return GitRepoInfo(owner: owner, repo: repo, branch: "", path: path, cloneURL: cloneURL, skillFilter: skillFilter)
     }
 
     /// Parse GitHub shorthand: owner/repo[@skill-name] or owner/repo/path[@skill-name]
@@ -204,7 +205,7 @@ struct GitService: Sendable {
         let path = parts.count > 2 ? parts[2...].joined(separator: "/") : ""
         let cloneURL = URL(string: "https://github.com/\(owner)/\(repo).git")!
 
-        return GitRepoInfo(owner: owner, repo: repo, branch: "main", path: path, cloneURL: cloneURL, skillFilter: skillFilter)
+        return GitRepoInfo(owner: owner, repo: repo, branch: "", path: path, cloneURL: cloneURL, skillFilter: skillFilter)
     }
 
     private func parseTreeURL(
@@ -245,15 +246,7 @@ struct GitService: Sendable {
     }
 
     private func fetchStagedSkillDirectories(from info: GitRepoInfo) async throws -> [StagedSkillDirectory] {
-        let host = info.cloneURL.host ?? ""
-
-        if info.path.isEmpty && (host == "github.com" || host.hasSuffix(".github.com")) {
-            // GitHub bare repo → tarball (lighter, no git required)
-            return try await fetchViaTarball(info: info)
-        } else {
-            // URL with specific path, or non-GitHub host → git clone
-            return try await fetchViaGitClone(info: info)
-        }
+        try await fetchViaGitClone(info: info)
     }
 
     private struct LocatedSkillDirectory {
@@ -266,6 +259,22 @@ struct GitService: Sendable {
         let directory: URL
         let pluginName: String?
         let relativePath: String
+    }
+
+    private var discoverySparseCheckoutPaths: [String] {
+        [
+            ".claude/skills",
+            "skills",
+            "skills/.curated",
+            ".codex/skills",
+            ".agents/skills",
+            "agents/skills",
+            "agent/skills",
+            "claude/skills",
+            "codex/skills",
+            ".claude-plugin",
+            "SKILL.md",
+        ]
     }
 
     /// Result of a skill discovery operation. The staging directory must be cleaned up by the caller.
@@ -304,7 +313,7 @@ struct GitService: Sendable {
             }
 
             if let filter = info.skillFilter,
-               frontmatter.name.lowercased() != filter.lowercased() {
+               !matchesSkillFilter(filter, frontmatter: frontmatter, staged: staged) {
                 continue
             }
 
@@ -328,6 +337,18 @@ struct GitService: Sendable {
             ?? FileManager.default.temporaryDirectory
 
         return DiscoveryResult(skills: discovered, stagingDirectory: stagingDir)
+    }
+
+    private func matchesSkillFilter(
+        _ filter: String,
+        frontmatter: SkillFrontmatter,
+        staged: StagedSkillDirectory
+    ) -> Bool {
+        let normalizedFilter = filter.lowercased()
+        return frontmatter.name.lowercased() == normalizedFilter
+            || staged.directory.lastPathComponent.lowercased() == normalizedFilter
+            || staged.relativePath.lowercased() == normalizedFilter
+            || staged.relativePath.lowercased().hasSuffix("/\(normalizedFilter)")
     }
 
     // MARK: - Tarball Download (bare repo)
@@ -389,6 +410,7 @@ struct GitService: Sendable {
             throw GitServiceError.gitNotFound
         }
 
+        let branch = try await resolveBranch(for: info)
         let tmpDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("skillhub-\(UUID().uuidString)")
 
@@ -399,15 +421,14 @@ struct GitService: Sendable {
         // Step 1: Shallow clone
         try await runGit([
             "clone", "--depth", "1", "--filter=blob:none", "--sparse",
-            "--branch", info.branch,
+            "--branch", branch,
             info.cloneURL.absoluteString,
             tmpDir.path()
         ])
 
         // Step 2: Sparse checkout
-        if !info.path.isEmpty {
-            try await runGitInDir(tmpDir, ["sparse-checkout", "set", info.path])
-        }
+        let sparsePaths = info.path.isEmpty ? discoverySparseCheckoutPaths : [info.path]
+        try await runGitInDir(tmpDir, ["sparse-checkout", "set", "--skip-checks"] + sparsePaths)
 
         // Step 3: Find SKILL.md directories
         let searchDir = info.path.isEmpty
@@ -715,6 +736,31 @@ struct GitService: Sendable {
         return try? JSONDecoder().decode(type, from: data)
     }
 
+    private func resolveBranch(for info: GitRepoInfo) async throws -> String {
+        if !info.branch.isEmpty {
+            return info.branch
+        }
+
+        let output = try await runGitOutput([
+            "ls-remote", "--symref", info.cloneURL.absoluteString, "HEAD",
+        ])
+
+        for line in output.split(separator: "\n") {
+            guard line.hasPrefix("ref: refs/heads/"),
+                  let tabIndex = line.firstIndex(of: "\t")
+            else {
+                continue
+            }
+
+            let ref = line[line.index(line.startIndex, offsetBy: "ref: refs/heads/".count)..<tabIndex]
+            if !ref.isEmpty {
+                return String(ref)
+            }
+        }
+
+        return "main"
+    }
+
     // MARK: - Git Process
 
     private func gitExists() -> Bool {
@@ -730,6 +776,17 @@ struct GitService: Sendable {
 
     private func runGit(_ arguments: [String]) async throws {
         try await runProcess(
+            executable: URL(fileURLWithPath: "/usr/bin/git"),
+            arguments: arguments,
+            environment: [
+                "GIT_TERMINAL_PROMPT": "0",
+                "GIT_LFS_SKIP_SMUDGE": "1",
+            ]
+        )
+    }
+
+    private func runGitOutput(_ arguments: [String]) async throws -> String {
+        try await runProcessOutput(
             executable: URL(fileURLWithPath: "/usr/bin/git"),
             arguments: arguments,
             environment: [
@@ -788,6 +845,61 @@ struct GitService: Sendable {
 
                 if proc.terminationStatus == 0 {
                     continuation.resume()
+                } else {
+                    continuation.resume(throwing: GitServiceError.commandFailed(
+                        command: ([executable.path()] + arguments).joined(separator: " "),
+                        exitCode: proc.terminationStatus,
+                        stdout: stdout,
+                        stderr: stderr
+                    ))
+                }
+            }
+
+            do {
+                try process.run()
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
+
+    private func runProcessOutput(
+        executable: URL,
+        arguments: [String],
+        currentDirectory: URL? = nil,
+        environment: [String: String] = [:]
+    ) async throws -> String {
+        let process = Process()
+        process.executableURL = executable
+        process.arguments = arguments
+        if let currentDirectory {
+            process.currentDirectoryURL = currentDirectory
+        }
+
+        var env = ProcessInfo.processInfo.environment
+        for (key, value) in environment {
+            env[key] = value
+        }
+        process.environment = env
+
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+
+        return try await withCheckedThrowingContinuation { continuation in
+            process.terminationHandler = { proc in
+                let stdout = String(
+                    data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(),
+                    encoding: .utf8
+                ) ?? ""
+                let stderr = String(
+                    data: stderrPipe.fileHandleForReading.readDataToEndOfFile(),
+                    encoding: .utf8
+                ) ?? ""
+
+                if proc.terminationStatus == 0 {
+                    continuation.resume(returning: stdout)
                 } else {
                     continuation.resume(throwing: GitServiceError.commandFailed(
                         command: ([executable.path()] + arguments).joined(separator: " "),
