@@ -17,71 +17,176 @@ struct SidebarView: View {
     let manager: SkillManager
     @Binding var detailItem: SidebarItem?
     @Binding var isEditing: Bool
-    @Binding var selectedItems: Set<SidebarItem>
-    @State private var lastNonEditSelection = Set<SidebarItem>()
+    @Binding var selectedBatchItems: Set<SidebarItem>
+    let onDeleteSelectedSkills: () -> Void
+
+    private var selectedSkillCount: Int {
+        selectedBatchItems.filter {
+            if case .skill = $0 { return true }
+            return false
+        }.count
+    }
 
     var body: some View {
-        List(selection: $selectedItems) {
-            if manager.skills.isEmpty && manager.agents.isEmpty {
-                ContentUnavailableView {
-                    Label(L.string("ui.label.no_skills", using: lm), systemImage: "doc.text")
-                } description: {
-                    L.text("ui.hint.no_skills", using: lm)
+        Group {
+            if isEditing {
+                List {
+                    sidebarContent
                 }
-            }
-
-            if !manager.filteredSkills.isEmpty {
-                Section(L.string("ui.sidebar.skills_count", Int64(manager.filteredSkills.count), using: lm)) {
-                    ForEach(manager.filteredSkills) { skill in
-                        let item = SidebarItem.skill(skill)
-                        SkillRow(skill: skill, lm: lm)
-                            .tag(item)
-                            .contextMenu {
-                                Button(L.string("ui.action.delete", using: lm), role: .destructive) {
-                                    Task { try? manager.removeSkill(skill) }
-                                }
-                            }
-                    }
-                }
-            }
-
-            if !manager.agents.isEmpty {
-                Section(L.string("ui.sidebar.agents_count", Int64(manager.agents.count), using: lm)) {
-                    ForEach(manager.agents) { agent in
-                        HStack(spacing: 6) {
-                            AgentLogo(agent: agent, size: 16)
-                            Text(agent.displayName)
-                        }
-                        .tag(SidebarItem.agent(agent))
-                    }
+            } else {
+                List(selection: detailSelection) {
+                    sidebarContent
                 }
             }
         }
         .listStyle(.sidebar)
         .id(manager.skillsRevision)
-        .onChange(of: selectedItems) {
-            syncSelection()
-        }
         .onChange(of: isEditing) {
             if isEditing {
-                lastNonEditSelection = selectedItems
+                selectedBatchItems = currentDetailSkillSelection
             } else {
-                selectedItems = lastNonEditSelection
-                syncSelection()
+                selectedBatchItems.removeAll()
             }
         }
     }
 
-    private func syncSelection() {
-        if isEditing { return }
-        if selectedItems.count > 1 {
-            if let current = detailItem, selectedItems.contains(current) {
-                selectedItems = [current]
-            } else {
-                selectedItems = [selectedItems.first!]
+    @ViewBuilder
+    private var sidebarContent: some View {
+        if manager.skills.isEmpty && manager.agents.isEmpty {
+            ContentUnavailableView {
+                Label(L.string("ui.label.no_skills", using: lm), systemImage: "doc.text")
+            } description: {
+                L.text("ui.hint.no_skills", using: lm)
             }
         }
-        detailItem = selectedItems.first
+
+        if isEditing || !manager.skills.isEmpty {
+            Section {
+                ForEach(manager.filteredSkills) { skill in
+                    let item = SidebarItem.skill(skill)
+                    skillRow(skill: skill, item: item)
+                }
+            } header: {
+                skillsSectionHeader
+            }
+        }
+
+        if !manager.agents.isEmpty {
+            Section(L.string("ui.sidebar.agents_count", Int64(manager.agents.count), using: lm)) {
+                ForEach(manager.agents) { agent in
+                    agentRow(agent)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func skillRow(skill: Skill, item: SidebarItem) -> some View {
+        if isEditing {
+            HStack(spacing: 8) {
+                Image(systemName: selectedBatchItems.contains(item) ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(selectedBatchItems.contains(item) ? Color.accentColor : .secondary)
+                    .imageScale(.medium)
+                    .frame(width: 16)
+
+                SkillRow(skill: skill, lm: lm)
+            }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    selectedBatchItems.toggle(item)
+                }
+                .contextMenu {
+                    Button(L.string("ui.action.delete", using: lm), role: .destructive) {
+                        Task { try? manager.removeSkill(skill) }
+                    }
+                }
+        } else {
+            SkillRow(skill: skill, lm: lm)
+                .tag(item)
+                .contextMenu {
+                    Button(L.string("ui.action.delete", using: lm), role: .destructive) {
+                        Task { try? manager.removeSkill(skill) }
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder
+    private func agentRow(_ agent: Agent) -> some View {
+        HStack(spacing: 6) {
+            AgentLogo(agent: agent, size: 16)
+            Text(agent.displayName)
+        }
+        .tag(SidebarItem.agent(agent))
+    }
+
+    private var detailSelection: Binding<Set<SidebarItem>> {
+        Binding {
+            currentDetailSelection
+        } set: { newSelection in
+            updateDetailSelection(with: newSelection)
+        }
+    }
+
+    private var currentDetailSelection: Set<SidebarItem> {
+        detailItem.map { [$0] } ?? []
+    }
+
+    private var currentDetailSkillSelection: Set<SidebarItem> {
+        guard let detailItem, case .skill = detailItem else { return [] }
+        return [detailItem]
+    }
+
+    private func updateDetailSelection(with newSelection: Set<SidebarItem>) {
+        if let detailItem, newSelection.contains(detailItem) {
+            return
+        }
+
+        detailItem = newSelection.first
+    }
+
+    private var skillsSectionHeader: some View {
+        HStack {
+            Text(L.string("ui.sidebar.skills_count", Int64(manager.filteredSkills.count), using: lm))
+            Spacer()
+            if isEditing && selectedSkillCount > 0 {
+                Button {
+                    onDeleteSelectedSkills()
+                } label: {
+                    Label(
+                        L.string("ui.action.delete_count", Int64(selectedSkillCount), using: lm),
+                        systemImage: "trash"
+                    )
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .foregroundStyle(.red)
+                .help(L.string("ui.action.delete_count", Int64(selectedSkillCount), using: lm))
+                .accessibilityLabel(L.string("ui.action.delete_count", Int64(selectedSkillCount), using: lm))
+            }
+            Button {
+                isEditing.toggle()
+            } label: {
+                Label(
+                    L.string(isEditing ? "ui.action.done" : "ui.action.edit", using: lm),
+                    systemImage: isEditing ? "checkmark" : "checklist"
+                )
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            .help(L.string(isEditing ? "ui.action.done" : "ui.action.edit", using: lm))
+            .accessibilityLabel(L.string(isEditing ? "ui.action.done" : "ui.action.edit", using: lm))
+        }
+    }
+}
+
+private extension Set where Element == SidebarItem {
+    mutating func toggle(_ item: SidebarItem) {
+        if contains(item) {
+            remove(item)
+        } else {
+            insert(item)
+        }
     }
 }
 

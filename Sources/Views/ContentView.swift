@@ -5,7 +5,7 @@ struct ContentView: View {
     @Environment(LocalizationManager.self) private var lm
     @State private var manager = SkillManager()
     @State private var detailItem: SidebarItem?
-    @State private var selectedItems = Set<SidebarItem>()
+    @State private var selectedBatchItems = Set<SidebarItem>()
     @State private var isEditing = false
     @State private var showBatchDeleteConfirm = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
@@ -21,7 +21,7 @@ struct ContentView: View {
     }
 
     private var selectedSkillCount: Int {
-        selectedItems.filter {
+        selectedBatchItems.filter {
             if case .skill = $0 { return true }
             return false
         }.count
@@ -33,7 +33,10 @@ struct ContentView: View {
                 manager: manager,
                 detailItem: $detailItem,
                 isEditing: $isEditing,
-                selectedItems: $selectedItems
+                selectedBatchItems: $selectedBatchItems,
+                onDeleteSelectedSkills: {
+                    showBatchDeleteConfirm = true
+                }
             )
             .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 300)
         } detail: {
@@ -48,12 +51,12 @@ struct ContentView: View {
         .alert(L.string("alert.delete.title", Int64(selectedSkillCount), using: lm), isPresented: $showBatchDeleteConfirm) {
             Button(L.string("ui.action.cancel", using: lm), role: .cancel) {}
             Button(L.string("ui.action.delete", using: lm), role: .destructive) {
-                let skillsToDelete = selectedItems.compactMap { item -> Skill? in
+                let skillsToDelete = selectedBatchItems.compactMap { item -> Skill? in
                     if case .skill(let skill) = item { return skill }
                     return nil
                 }
                 manager.removeSkills(skillsToDelete)
-                selectedItems.removeAll()
+                selectedBatchItems.removeAll()
             }
         } message: {
             L.text("alert.delete.message", using: lm)
@@ -122,42 +125,6 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        if isEditing && selectedSkillCount > 0 {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showBatchDeleteConfirm = true
-                } label: {
-                    Label(
-                        L.string("ui.action.delete_count", Int64(selectedSkillCount), using: lm),
-                        systemImage: "trash"
-                    )
-                }
-                .tint(.red)
-                .help(L.string("ui.action.delete_count", Int64(selectedSkillCount), using: lm))
-                .accessibilityLabel(L.string("ui.action.delete_count", Int64(selectedSkillCount), using: lm))
-            }
-        }
-
-        ToolbarItem(placement: .primaryAction) {
-            if isEditing {
-                Button {
-                    isEditing = false
-                } label: {
-                    Label(L.string("ui.action.done", using: lm), systemImage: "checkmark")
-                }
-                .help(L.string("ui.action.done", using: lm))
-                .accessibilityLabel(L.string("ui.action.done", using: lm))
-            } else {
-                Button {
-                    isEditing = true
-                } label: {
-                    Label(L.string("ui.action.edit", using: lm), systemImage: "checklist")
-                }
-                .help(L.string("ui.action.edit", using: lm))
-                .accessibilityLabel(L.string("ui.action.edit", using: lm))
-            }
-        }
-
         ToolbarItem(placement: .primaryAction) {
             Button {
                 showingAddSkill = true
@@ -282,7 +249,7 @@ struct ContentView: View {
 
     private func refreshSelectionFromLatestSkills() {
         detailItem = refreshedItem(detailItem)
-        selectedItems = Set(selectedItems.compactMap(refreshedItem))
+        selectedBatchItems = Set(selectedBatchItems.compactMap(refreshedItem))
     }
 
     private func refreshedItem(_ item: SidebarItem?) -> SidebarItem? {
