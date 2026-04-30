@@ -14,14 +14,13 @@
 "ui.action.delete" = "删除";
 "alert.delete.message" = "此操作无法撤销。";
 "ui.label.no_selection" = "未选择";
-"ui.hint.select_from_sidebar" = "从侧边栏选择一个技能或智能体。";
+"ui.hint.select_from_sidebar" = "从侧边栏选择一个技能。";
 "ui.label.loading" = "加载中...";
 
 /* SidebarView */
 "ui.label.no_skills" = "暂无技能";
 "ui.hint.no_skills" = "点击 + 从本地文件或 Git 仓库添加技能。";
 "ui.sidebar.skills_count" = "技能 (%lld)";
-"ui.sidebar.agents_count" = "智能体 (%lld)";
 "ui.sidebar.local_source" = "本地";
 "time.just_now" = "刚刚";
 "time.minutes_ago" = "%lld分钟前";
@@ -39,10 +38,6 @@
 "ui.skill.directory" = "目录";
 "ui.skill.modified_label" = "修改于";
 "ui.skill.source" = "来源";
-"ui.skill.linked_agents" = "关联";
-"ui.skill.no_linked_agents" = "无";
-"ui.hint.enable_agent" = "启用智能体以自动关联此技能";
-"ui.skill.linked_to" = "已关联：%@";
 "ui.skill.rules_count" = "规则 (%lld)";
 "ui.skill.open_in_finder" = "在 Finder 中打开";
 "ui.skill.show_source" = "显示 Markdown 源码";
@@ -97,11 +92,6 @@
 "ui.settings.config_path" = "配置路径";
 "ui.settings.skills_path" = "技能文件夹";
 "ui.settings.config_path_footer" = "技能会存储在所选配置路径下的 skills 文件夹中。";
-
-/* AgentDetailView */
-"ui.label.no_agents" = "暂无智能体";
-"ui.hint.no_agents" = "打开设置以启用预设智能体或添加自定义智能体。";
-"ui.label.no_skills_linked" = "暂无关联技能";
 
 /* Status messages */
 "status.cloning_repo" = "正在克隆仓库...";

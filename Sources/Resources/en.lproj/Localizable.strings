@@ -14,14 +14,13 @@
 "ui.action.delete" = "Delete";
 "alert.delete.message" = "This action cannot be undone.";
 "ui.label.no_selection" = "No Selection";
-"ui.hint.select_from_sidebar" = "Select a skill or agent from the sidebar.";
+"ui.hint.select_from_sidebar" = "Select a skill from the sidebar.";
 "ui.label.loading" = "Loading...";
 
 /* SidebarView */
 "ui.label.no_skills" = "No Skills";
 "ui.hint.no_skills" = "Click + to add skills from local files or Git repositories.";
 "ui.sidebar.skills_count" = "Skills (%lld)";
-"ui.sidebar.agents_count" = "Agents (%lld)";
 "ui.sidebar.local_source" = "Local";
 "time.just_now" = "just now";
 "time.minutes_ago" = "%lldm ago";
@@ -39,10 +38,6 @@
 "ui.skill.directory" = "Directory";
 "ui.skill.modified_label" = "Modified";
 "ui.skill.source" = "Source";
-"ui.skill.linked_agents" = "Linked";
-"ui.skill.no_linked_agents" = "None";
-"ui.hint.enable_agent" = "Enable an agent to auto-link this skill";
-"ui.skill.linked_to" = "Linked to: %@";
 "ui.skill.rules_count" = "Rules (%lld)";
 "ui.skill.open_in_finder" = "Open in Finder";
 "ui.skill.show_source" = "Show Markdown source";
@@ -97,11 +92,6 @@
 "ui.settings.config_path" = "Config Path";
 "ui.settings.skills_path" = "Skills folder";
 "ui.settings.config_path_footer" = "Skills are stored under the selected config path in a skills folder.";
-
-/* AgentDetailView */
-"ui.label.no_agents" = "No Agents";
-"ui.hint.no_agents" = "Open Settings to enable preset agents or add custom ones.";
-"ui.label.no_skills_linked" = "No skills linked";
 
 /* Status messages */
 "status.cloning_repo" = "Cloning repository...";

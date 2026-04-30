@@ -3,12 +3,11 @@ import SwiftUI
 
 struct SkillDetailView: View {
     @Environment(LocalizationManager.self) private var lm
-    let manager: SkillManager
     let skill: Skill?
 
     var body: some View {
         if let skill {
-            SkillDetailContent(manager: manager, skill: skill, lm: lm)
+            SkillDetailContent(skill: skill, lm: lm)
         } else {
             ContentUnavailableView {
                 Label(L.string("ui.label.no_skill_selected", using: lm), systemImage: "doc.text")
@@ -21,7 +20,6 @@ struct SkillDetailView: View {
 }
 
 private struct SkillDetailContent: View {
-    let manager: SkillManager
     let skill: Skill
     let lm: LocalizationManager
     @State private var isRenderingMarkdown = true
@@ -113,10 +111,6 @@ private struct SkillDetailContent: View {
                             valueLineLimit: 1
                         )
                     }
-                    MetadataText(
-                        label: L.string("ui.skill.linked_agents", using: lm),
-                        value: linkedAgentsSummary
-                    )
                 }
                 .foregroundStyle(.tertiary)
             }
@@ -124,20 +118,9 @@ private struct SkillDetailContent: View {
         }
     }
 
-    private var linkedAgents: [Agent] {
-        manager.skillService.linkedAgents(for: skill, agents: manager.agents)
-    }
-
     private var sourceWebURL: URL? {
         guard let sourceURL = skill.sourceURL else { return nil }
         return Self.webURL(for: sourceURL)
-    }
-
-    private var linkedAgentsSummary: String {
-        if linkedAgents.isEmpty {
-            return L.string("ui.skill.no_linked_agents", using: lm)
-        }
-        return linkedAgents.map(\.displayName).joined(separator: ", ")
     }
 
     private static func webURL(for sourceURL: URL) -> URL? {

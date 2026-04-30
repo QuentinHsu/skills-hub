@@ -14,17 +14,12 @@ struct ContentView: View {
     @State private var showingCopyPanel = false
 
     private var selectedSkill: Skill? {
-        if case .skill(let skill) = detailItem {
-            return manager.skills.first { $0.id == skill.id } ?? skill
-        }
-        return nil
+        guard case .skill(let skill) = detailItem else { return nil }
+        return manager.skills.first { $0.id == skill.id } ?? skill
     }
 
     private var selectedSkillCount: Int {
-        selectedBatchItems.filter {
-            if case .skill = $0 { return true }
-            return false
-        }.count
+        selectedBatchItems.count
     }
 
     var body: some View {
@@ -52,8 +47,8 @@ struct ContentView: View {
             Button(L.string("ui.action.cancel", using: lm), role: .cancel) {}
             Button(L.string("ui.action.delete", using: lm), role: .destructive) {
                 let skillsToDelete = selectedBatchItems.compactMap { item -> Skill? in
-                    if case .skill(let skill) = item { return skill }
-                    return nil
+                    guard case .skill(let skill) = item else { return nil }
+                    return skill
                 }
                 manager.removeSkills(skillsToDelete)
                 selectedBatchItems.removeAll()
@@ -257,9 +252,6 @@ struct ContentView: View {
                 return nil
             }
             return .skill(latest)
-        case .agent(let agent):
-            let latest = manager.agents.first(where: { $0.id == agent.id }) ?? agent
-            return .agent(latest)
         }
     }
 
@@ -267,10 +259,7 @@ struct ContentView: View {
     private var detailView: some View {
         switch detailItem {
         case .skill:
-            SkillDetailView(manager: manager, skill: selectedSkill)
-                .environment(lm)
-        case .agent:
-            AgentDetailView(manager: manager)
+            SkillDetailView(skill: selectedSkill)
                 .environment(lm)
         case .none:
             ContentUnavailableView {

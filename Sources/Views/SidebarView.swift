@@ -2,12 +2,10 @@ import SwiftUI
 
 enum SidebarItem: Hashable, Identifiable {
     case skill(Skill)
-    case agent(Agent)
 
     var id: String {
         switch self {
         case .skill(let skill): "skill-\(skill.id)"
-        case .agent(let agent): "agent-\(agent.id)"
         }
     }
 }
@@ -21,10 +19,7 @@ struct SidebarView: View {
     let onDeleteSelectedSkills: () -> Void
 
     private var selectedSkillCount: Int {
-        selectedBatchItems.filter {
-            if case .skill = $0 { return true }
-            return false
-        }.count
+        selectedBatchItems.count
     }
 
     var body: some View {
@@ -52,7 +47,7 @@ struct SidebarView: View {
 
     @ViewBuilder
     private var sidebarContent: some View {
-        if manager.skills.isEmpty && manager.agents.isEmpty {
+        if manager.skills.isEmpty {
             ContentUnavailableView {
                 Label(L.string("ui.label.no_skills", using: lm), systemImage: "doc.text")
             } description: {
@@ -68,14 +63,6 @@ struct SidebarView: View {
                 }
             } header: {
                 skillsSectionHeader
-            }
-        }
-
-        if !manager.agents.isEmpty {
-            Section(L.string("ui.sidebar.agents_count", Int64(manager.agents.count), using: lm)) {
-                ForEach(manager.agents) { agent in
-                    agentRow(agent)
-                }
             }
         }
     }
@@ -109,15 +96,6 @@ struct SidebarView: View {
                     }
                 }
         }
-    }
-
-    @ViewBuilder
-    private func agentRow(_ agent: Agent) -> some View {
-        HStack(spacing: 6) {
-            AgentLogo(agent: agent, size: 16)
-            Text(agent.displayName)
-        }
-        .tag(SidebarItem.agent(agent))
     }
 
     private var detailSelection: Binding<Set<SidebarItem>> {
