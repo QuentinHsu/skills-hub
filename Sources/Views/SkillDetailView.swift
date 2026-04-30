@@ -103,69 +103,100 @@ private struct SkillDetailContent: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 16) {
-                if let author = skill.author {
-                    Label(author, systemImage: "person")
-                }
-                if let version = skill.version {
-                    Label("v\(version)", systemImage: "tag")
-                }
-                Label(skill.directoryName, systemImage: "folder")
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-
-            HStack(spacing: 16) {
-                Label {
-                    L.text("ui.skill.modified", Self.dateFormatter.string(from: skill.modifiedAt), using: lm)
-                } icon: {
-                    Image(systemName: "calendar")
-                }
-            }
-            .font(.caption)
-            .foregroundStyle(.tertiary)
-
-            if let sourceURL = skill.sourceURL {
-                Label {
-                    Text(sourceURL.absoluteString)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                } icon: {
-                    Image(systemName: "link")
-                        .foregroundStyle(.blue)
-                }
-                .font(.caption)
-                .foregroundStyle(.blue)
-            }
-
-            // Linked agents
-            if !linkedAgents.isEmpty {
-                HStack(spacing: 8) {
-                    Image(systemName: "link")
-                        .foregroundStyle(.green)
-                    HStack(spacing: 6) {
-                        ForEach(linkedAgents) { agent in
-                            AgentLogo(agent: agent, size: 16)
-                                .help(agent.displayName)
-                        }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 12) {
+                    if let author = skill.author {
+                        MetadataText(label: L.string("ui.skill.author", using: lm), value: author)
                     }
+                    if let version = skill.version {
+                        MetadataText(label: L.string("ui.skill.version", using: lm), value: "v\(version)")
+                    }
+                    MetadataText(label: L.string("ui.skill.directory", using: lm), value: skill.directoryName)
                 }
-                .font(.caption)
                 .foregroundStyle(.secondary)
-            } else {
-                HStack(spacing: 6) {
-                    Image(systemName: "link.badge.plus")
-                        .foregroundStyle(.orange)
-                    L.text("ui.hint.enable_agent", using: lm)
+
+                HStack(spacing: 12) {
+                    MetadataText(
+                        label: L.string("ui.skill.modified_label", using: lm),
+                        value: Self.dateFormatter.string(from: skill.modifiedAt)
+                    )
+                    if skill.sourceURL != nil, let sourceWebURL {
+                        MetadataLink(
+                            label: L.string("ui.skill.source", using: lm),
+                            value: sourceWebURL.absoluteString,
+                            destination: sourceWebURL
+                        )
+                        .help(sourceWebURL.absoluteString)
+                    } else if let sourceURL = skill.sourceURL {
+                        MetadataText(
+                            label: L.string("ui.skill.source", using: lm),
+                            value: sourceURL.absoluteString,
+                            valueLineLimit: 1
+                        )
+                    }
+                    MetadataText(
+                        label: L.string("ui.skill.linked_agents", using: lm),
+                        value: linkedAgentsSummary
+                    )
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.tertiary)
             }
+            .font(.caption)
         }
     }
 
     private var linkedAgents: [Agent] {
         manager.skillService.linkedAgents(for: skill, agents: manager.agents)
+    }
+
+    private var sourceWebURL: URL? {
+        guard let sourceURL = skill.sourceURL else { return nil }
+        return Self.webURL(for: sourceURL)
+    }
+
+    private var linkedAgentsSummary: String {
+        if linkedAgents.isEmpty {
+            return L.string("ui.skill.no_linked_agents", using: lm)
+        }
+        return linkedAgents.map(\.displayName).joined(separator: ", ")
+    }
+
+    private static func webURL(for sourceURL: URL) -> URL? {
+        if let info = try? GitService().parseURL(sourceURL.absoluteString) {
+            return webURL(for: info)
+        }
+
+        guard let scheme = sourceURL.scheme?.lowercased(),
+              scheme == "http" || scheme == "https"
+        else {
+            return nil
+        }
+
+        return sourceURL
+    }
+
+    private static func webURL(for info: GitRepoInfo) -> URL? {
+        var base = info.cloneURL.absoluteString
+        if base.hasSuffix(".git") {
+            base = String(base.dropLast(4))
+        }
+
+        guard !info.branch.isEmpty else {
+            return URL(string: base)
+        }
+
+        let treePath: String
+        switch info.cloneURL.host?.lowercased() {
+        case "gitlab.com":
+            treePath = "-/tree"
+        case "bitbucket.org":
+            treePath = "src"
+        default:
+            treePath = "tree"
+        }
+
+        let pathSuffix = info.path.isEmpty ? "" : "/\(info.path)"
+        return URL(string: "\(base)/\(treePath)/\(info.branch)\(pathSuffix)")
     }
 
     @ViewBuilder
@@ -206,6 +237,44 @@ private struct SkillDetailContent: View {
                 }
             }
         }
+    }
+}
+
+private struct MetadataText: View {
+    let label: String
+    let value: String
+    var valueLineLimit: Int? = nil
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Text("\(label):")
+                .fontWeight(.medium)
+            Text(value)
+                .lineLimit(valueLineLimit)
+                .truncationMode(.middle)
+        }
+        .lineLimit(1)
+    }
+}
+
+private struct MetadataLink: View {
+    let label: String
+    let value: String
+    let destination: URL
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Text("\(label):")
+                .fontWeight(.medium)
+            Link(destination: destination) {
+                Text(value)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.blue)
+        }
+        .lineLimit(1)
     }
 }
 

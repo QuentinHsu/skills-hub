@@ -34,6 +34,13 @@
 "ui.skill.copy_md" = "Copy SKILL.md";
 "ui.skill.reveal_in_finder" = "Reveal in Finder";
 "ui.skill.modified" = "Modified: %@";
+"ui.skill.author" = "Author";
+"ui.skill.version" = "Version";
+"ui.skill.directory" = "Directory";
+"ui.skill.modified_label" = "Modified";
+"ui.skill.source" = "Source";
+"ui.skill.linked_agents" = "Linked";
+"ui.skill.no_linked_agents" = "None";
 "ui.hint.enable_agent" = "Enable an agent to auto-link this skill";
 "ui.skill.linked_to" = "Linked to: %@";
 "ui.skill.rules_count" = "Rules (%lld)";

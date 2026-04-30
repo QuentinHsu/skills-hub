@@ -34,6 +34,13 @@
 "ui.skill.copy_md" = "复制 SKILL.md";
 "ui.skill.reveal_in_finder" = "在 Finder 中显示";
 "ui.skill.modified" = "修改于：%@";
+"ui.skill.author" = "作者";
+"ui.skill.version" = "版本";
+"ui.skill.directory" = "目录";
+"ui.skill.modified_label" = "修改于";
+"ui.skill.source" = "来源";
+"ui.skill.linked_agents" = "关联";
+"ui.skill.no_linked_agents" = "无";
 "ui.hint.enable_agent" = "启用智能体以自动关联此技能";
 "ui.skill.linked_to" = "已关联：%@";
 "ui.skill.rules_count" = "规则 (%lld)";
