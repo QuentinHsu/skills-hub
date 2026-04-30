@@ -38,7 +38,7 @@ enum BuiltInAgent: String, CaseIterable, Identifiable {
         case .claudeCode: "Claude Code"
         case .codex: "Codex"
         case .cursor: "Cursor"
-        case .vscode: "VS Code (Copilot)"
+        case .vscode: "GitHub Copilot"
         }
     }
 
