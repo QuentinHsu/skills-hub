@@ -22,9 +22,9 @@ final class SkillManager {
     var discoveryStagingURL: URL?
     var isDiscovering: Bool = false
 
-    let skillService: SkillService
+    var skillService: SkillService
     let gitService: GitService
-    let configService: ConfigService
+    var configService: ConfigService
 
     init() {
         self.skillService = SkillService()
@@ -42,6 +42,10 @@ final class SkillManager {
 
     var hubDirectory: URL {
         skillService.hubDirectory
+    }
+
+    var configDirectory: URL {
+        configService.configURL.deletingLastPathComponent()
     }
 
     // MARK: - Built-in Agents
@@ -371,10 +375,27 @@ final class SkillManager {
         try skillService.copySkill(skill, to: directory)
     }
 
+    // MARK: - Settings
+
+    func updateConfigDirectory(_ directory: URL) {
+        ConfigService.saveConfigDirectory(directory)
+        configService = ConfigService(configDirectory: directory)
+        skillService = SkillService(hubDirectory: directory.appendingPathComponent("skills"))
+
+        if FileManager.default.fileExists(atPath: configService.configURL.path()) {
+            loadAgentsFromConfig()
+        } else {
+            saveConfig()
+        }
+
+        scan()
+    }
+
     // MARK: - Config Persistence
 
     private func loadAgentsFromConfig() {
         let config = configService.load()
+        agents.removeAll()
 
         // Restore built-in agents
         for id in config.enabledBuiltIn {

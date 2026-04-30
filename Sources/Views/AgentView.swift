@@ -9,51 +9,7 @@ struct AgentView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                // Built-in agents with toggles
-                Section {
-                    ForEach(BuiltInAgent.allCases) { agent in
-                        BuiltInAgentRow(manager: manager, agent: agent)
-                    }
-                } header: {
-                    L.text("ui.agent.preset_agents", using: lm)
-                } footer: {
-                    L.text("ui.hint.preset_agents", using: lm)
-                }
-
-                // Custom agents
-                Section {
-                    let customAgents = manager.agents.filter { agent in
-                        !BuiltInAgent.allCases.contains { $0.rawValue == agent.id }
-                    }
-
-                    if customAgents.isEmpty {
-                        L.text("ui.label.no_custom_agents", using: lm)
-                            .foregroundStyle(.secondary)
-                            .italic()
-                    } else {
-                        ForEach(customAgents) { agent in
-                            CustomAgentRow(manager: manager, agent: agent)
-                        }
-                        .onDelete { indexSet in
-                            for index in indexSet {
-                                manager.removeAgent(customAgents[index])
-                            }
-                        }
-                    }
-                } header: {
-                    HStack {
-                        L.text("ui.agent.custom_agents", using: lm)
-                        Spacer()
-                        Button {
-                            showingAddCustom = true
-                        } label: {
-                            Image(systemName: "plus.circle")
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                }
-            }
+            AgentManagementList(manager: manager, showingAddCustom: $showingAddCustom)
             .navigationTitle(L.string("ui.label.agents", using: lm))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -66,6 +22,60 @@ struct AgentView: View {
             }
         }
         .frame(minWidth: 480, minHeight: 400)
+    }
+}
+
+struct AgentManagementList: View {
+    @Environment(LocalizationManager.self) private var lm
+    let manager: SkillManager
+    @Binding var showingAddCustom: Bool
+
+    var body: some View {
+        List {
+            // Built-in agents with toggles
+            Section {
+                ForEach(BuiltInAgent.allCases) { agent in
+                    BuiltInAgentRow(manager: manager, agent: agent)
+                }
+            } header: {
+                L.text("ui.agent.preset_agents", using: lm)
+            } footer: {
+                L.text("ui.hint.preset_agents", using: lm)
+            }
+
+            // Custom agents
+            Section {
+                let customAgents = manager.agents.filter { agent in
+                    !BuiltInAgent.allCases.contains { $0.rawValue == agent.id }
+                }
+
+                if customAgents.isEmpty {
+                    L.text("ui.label.no_custom_agents", using: lm)
+                        .foregroundStyle(.secondary)
+                        .italic()
+                } else {
+                    ForEach(customAgents) { agent in
+                        CustomAgentRow(manager: manager, agent: agent)
+                    }
+                    .onDelete { indexSet in
+                        for index in indexSet {
+                            manager.removeAgent(customAgents[index])
+                        }
+                    }
+                }
+            } header: {
+                HStack {
+                    L.text("ui.agent.custom_agents", using: lm)
+                    Spacer()
+                    Button {
+                        showingAddCustom = true
+                    } label: {
+                        Image(systemName: "plus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+        }
     }
 }
 
@@ -146,7 +156,7 @@ private struct CustomAgentRow: View {
 
 // MARK: - Add Custom Agent
 
-private struct AddCustomAgentView: View {
+struct AddCustomAgentView: View {
     @Environment(LocalizationManager.self) private var lm
     let manager: SkillManager
     @Environment(\.dismiss) private var dismiss

@@ -51,27 +51,6 @@ private struct SkillDetailContent: View {
                 .padding(20)
         }
         .navigationTitle("Skills Hub")
-        .toolbar {
-            ToolbarItemGroup(placement: .secondaryAction) {
-                Button {
-                    if let content = try? String(contentsOf: skill.skillMdURL, encoding: .utf8) {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(content, forType: .string)
-                    }
-                } label: {
-                    Label(L.string("ui.skill.copy_md", using: lm), systemImage: "doc.on.doc")
-                }
-
-                Button {
-                    NSWorkspace.shared.selectFile(
-                        skill.skillMdURL.path(),
-                        inFileViewerRootedAtPath: skill.directoryURL.path()
-                    )
-                } label: {
-                    Label(L.string("ui.skill.reveal_in_finder", using: lm), systemImage: "folder")
-                }
-            }
-        }
     }
 
     private var renderModeButton: some View {

@@ -4,8 +4,8 @@ struct SkillService: Sendable {
     let hubDirectory: URL
 
     init(hubDirectory: URL? = nil) {
-        self.hubDirectory = hubDirectory ?? FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".agents/skills")
+        self.hubDirectory = hubDirectory ?? ConfigService.savedConfigDirectory
+            .appendingPathComponent("skills")
     }
 
     // MARK: - Hub Management

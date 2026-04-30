@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct ContentView: View {
@@ -9,7 +10,7 @@ struct ContentView: View {
     @State private var showBatchDeleteConfirm = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
     @State private var showingAddSkill = false
-    @State private var showingAgentManager = false
+    @State private var showingSettings = false
     @State private var showingCopyPanel = false
 
     private var selectedSkill: Skill? {
@@ -41,79 +42,9 @@ struct ContentView: View {
         .navigationSplitViewStyle(.balanced)
         .searchable(text: $manager.searchText, placement: .sidebar, prompt: L.string("ui.search.placeholder", using: lm))
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                if isEditing && selectedSkillCount > 0 {
-                    Button {
-                        showBatchDeleteConfirm = true
-                    } label: {
-                        Label(L.string("ui.action.delete_count", Int64(selectedSkillCount), using: lm), systemImage: "trash")
-                    }
-                    .tint(.red)
-                }
-
-                if isEditing {
-                    Button {
-                        isEditing = false
-                    } label: {
-                        L.text("ui.action.done", using: lm)
-                    }
-                } else {
-                    Button {
-                        isEditing = true
-                    } label: {
-                        Label(L.string("ui.action.edit", using: lm), systemImage: "checklist")
-                    }
-                }
-
-                Button {
-                    showingAddSkill = true
-                } label: {
-                    Label(L.string("ui.action.add_skill", using: lm), systemImage: "plus")
-                }
-
-                Button {
-                    showingAgentManager = true
-                } label: {
-                    Label(L.string("ui.label.agents", using: lm), systemImage: "person.2")
-                }
-
-                Button {
-                    Task {
-                        await manager.updateAllFromSources()
-                    }
-                } label: {
-                    Label(L.string("ui.action.update", using: lm), systemImage: "arrow.triangle.2.circlepath")
-                }
-                .disabled(manager.isLoading)
-
-                if selectedSkill != nil {
-                    Button {
-                        showingCopyPanel = true
-                    } label: {
-                        Label(L.string("ui.action.copy_to_project", using: lm), systemImage: "doc.on.doc")
-                    }
-                    .help(L.string("ui.hint.copy_to_project", using: lm))
-                }
-
-                // Language picker
-                Menu {
-                    ForEach(AppLanguage.allCases) { lang in
-                        Button {
-                            lm.currentLanguage = lang
-                        } label: {
-                            HStack {
-                                Text(lang.displayName)
-                                if lm.currentLanguage == lang {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    Image(systemName: "globe")
-                }
-            }
+            toolbarContent
         }
+        .background(ToolbarCustomizationDisabler().frame(width: 0, height: 0))
         .alert(L.string("alert.delete.title", Int64(selectedSkillCount), using: lm), isPresented: $showBatchDeleteConfirm) {
             Button(L.string("ui.action.cancel", using: lm), role: .cancel) {}
             Button(L.string("ui.action.delete", using: lm), role: .destructive) {
@@ -131,8 +62,8 @@ struct ContentView: View {
             AddSkillView(manager: manager)
                 .environment(lm)
         }
-        .sheet(isPresented: $showingAgentManager) {
-            AgentView(manager: manager)
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(manager: manager)
                 .environment(lm)
         }
         .fileImporter(
@@ -187,6 +118,128 @@ struct ContentView: View {
         .onChange(of: manager.skillsRevision) {
             refreshSelectionFromLatestSkills()
         }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        if isEditing && selectedSkillCount > 0 {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showBatchDeleteConfirm = true
+                } label: {
+                    Label(
+                        L.string("ui.action.delete_count", Int64(selectedSkillCount), using: lm),
+                        systemImage: "trash"
+                    )
+                }
+                .tint(.red)
+                .help(L.string("ui.action.delete_count", Int64(selectedSkillCount), using: lm))
+                .accessibilityLabel(L.string("ui.action.delete_count", Int64(selectedSkillCount), using: lm))
+            }
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            if isEditing {
+                Button {
+                    isEditing = false
+                } label: {
+                    Label(L.string("ui.action.done", using: lm), systemImage: "checkmark")
+                }
+                .help(L.string("ui.action.done", using: lm))
+                .accessibilityLabel(L.string("ui.action.done", using: lm))
+            } else {
+                Button {
+                    isEditing = true
+                } label: {
+                    Label(L.string("ui.action.edit", using: lm), systemImage: "checklist")
+                }
+                .help(L.string("ui.action.edit", using: lm))
+                .accessibilityLabel(L.string("ui.action.edit", using: lm))
+            }
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                showingAddSkill = true
+            } label: {
+                Label(L.string("ui.action.add_skill", using: lm), systemImage: "plus")
+            }
+            .help(L.string("ui.action.add_skill", using: lm))
+            .accessibilityLabel(L.string("ui.action.add_skill", using: lm))
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                Task {
+                    await manager.updateAllFromSources()
+                }
+            } label: {
+                Label(L.string("ui.action.update", using: lm), systemImage: "arrow.triangle.2.circlepath")
+            }
+            .disabled(manager.isLoading)
+            .help(L.string("ui.action.update", using: lm))
+            .accessibilityLabel(L.string("ui.action.update", using: lm))
+        }
+
+        if selectedSkill != nil {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingCopyPanel = true
+                } label: {
+                    Label(L.string("ui.action.copy_to_project", using: lm), systemImage: "folder.badge.plus")
+                }
+                .help(L.string("ui.hint.copy_to_project", using: lm))
+                .accessibilityLabel(L.string("ui.action.copy_to_project", using: lm))
+            }
+
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    copySelectedSkillMarkdown()
+                } label: {
+                    Label(L.string("ui.skill.copy_md", using: lm), systemImage: "doc.on.doc")
+                }
+                .help(L.string("ui.skill.copy_md", using: lm))
+                .accessibilityLabel(L.string("ui.skill.copy_md", using: lm))
+            }
+
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    revealSelectedSkillInFinder()
+                } label: {
+                    Label(L.string("ui.skill.reveal_in_finder", using: lm), systemImage: "folder")
+                }
+                .help(L.string("ui.skill.reveal_in_finder", using: lm))
+                .accessibilityLabel(L.string("ui.skill.reveal_in_finder", using: lm))
+            }
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                showingSettings = true
+            } label: {
+                Label(L.string("ui.settings.title", using: lm), systemImage: "gearshape")
+            }
+            .help(L.string("ui.settings.title", using: lm))
+            .accessibilityLabel(L.string("ui.settings.title", using: lm))
+        }
+    }
+
+    private func copySelectedSkillMarkdown() {
+        guard let selectedSkill,
+              let content = try? String(contentsOf: selectedSkill.skillMdURL, encoding: .utf8)
+        else { return }
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(content, forType: .string)
+    }
+
+    private func revealSelectedSkillInFinder() {
+        guard let selectedSkill else { return }
+
+        NSWorkspace.shared.selectFile(
+            selectedSkill.skillMdURL.path(),
+            inFileViewerRootedAtPath: selectedSkill.directoryURL.path()
+        )
     }
 
     private var statusText: Text {
@@ -263,6 +316,38 @@ struct ContentView: View {
                 L.text("ui.hint.select_from_sidebar", using: lm)
             }
             .navigationTitle("Skills Hub")
+        }
+    }
+}
+
+private struct ToolbarCustomizationDisabler: NSViewRepresentable {
+    func makeNSView(context: Context) -> ToolbarCustomizationView {
+        ToolbarCustomizationView()
+    }
+
+    func updateNSView(_ nsView: ToolbarCustomizationView, context: Context) {
+        nsView.configureToolbar()
+        nsView.configureToolbarOnNextRunLoop()
+    }
+}
+
+private final class ToolbarCustomizationView: NSView {
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        configureToolbar()
+        configureToolbarOnNextRunLoop()
+    }
+
+    func configureToolbar() {
+        guard let toolbar = window?.toolbar else { return }
+
+        toolbar.allowsUserCustomization = false
+        toolbar.autosavesConfiguration = false
+    }
+
+    func configureToolbarOnNextRunLoop() {
+        DispatchQueue.main.async { [weak self] in
+            self?.configureToolbar()
         }
     }
 }

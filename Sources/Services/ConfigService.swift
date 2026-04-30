@@ -12,11 +12,32 @@ struct CustomAgentEntry: Codable, Sendable {
 }
 
 struct ConfigService: Sendable {
+    private static let configDirectoryDefaultsKey = "configDirectoryPath"
+
+    static var defaultConfigDirectory: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".agents")
+    }
+
+    static var savedConfigDirectory: URL {
+        if let path = UserDefaults.standard.string(forKey: configDirectoryDefaultsKey),
+           !path.isEmpty
+        {
+            return URL(fileURLWithPath: NSString(string: path).expandingTildeInPath)
+        }
+
+        return defaultConfigDirectory
+    }
+
+    static func saveConfigDirectory(_ directory: URL) {
+        UserDefaults.standard.set(directory.path(), forKey: configDirectoryDefaultsKey)
+    }
+
     let configURL: URL
 
-    init() {
-        self.configURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".agents/config.json")
+    init(configDirectory: URL? = nil) {
+        self.configURL = (configDirectory ?? Self.savedConfigDirectory)
+            .appendingPathComponent("config.json")
     }
 
     func load() -> AgentConfig {

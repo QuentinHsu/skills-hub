@@ -84,11 +84,23 @@
 "ui.agent.skills_dir_path" = "Skills Directory Path";
 "ui.action.browse" = "Browse...";
 "ui.action.add" = "Add";
+"ui.action.reset" = "Reset";
+"ui.action.apply" = "Apply";
 "ui.agent.add_custom" = "Add Custom Agent";
+
+/* SettingsView */
+"ui.settings.title" = "Settings";
+"ui.settings.general" = "General";
+"ui.settings.appearance" = "Appearance";
+"ui.settings.language" = "Language";
+"ui.settings.storage" = "Storage";
+"ui.settings.config_path" = "Config Path";
+"ui.settings.skills_path" = "Skills folder";
+"ui.settings.config_path_footer" = "Skills are stored under the selected config path in a skills folder.";
 
 /* AgentDetailView */
 "ui.label.no_agents" = "No Agents";
-"ui.hint.no_agents" = "Click the Agents button to enable preset agents or add custom ones.";
+"ui.hint.no_agents" = "Open Settings to enable preset agents or add custom ones.";
 "ui.label.no_skills_linked" = "No skills linked";
 
 /* Status messages */

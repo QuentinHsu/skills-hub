@@ -84,11 +84,23 @@
 "ui.agent.skills_dir_path" = "技能目录路径";
 "ui.action.browse" = "浏览...";
 "ui.action.add" = "添加";
+"ui.action.reset" = "重置";
+"ui.action.apply" = "应用";
 "ui.agent.add_custom" = "添加自定义智能体";
+
+/* SettingsView */
+"ui.settings.title" = "设置";
+"ui.settings.general" = "通用";
+"ui.settings.appearance" = "外观";
+"ui.settings.language" = "语言";
+"ui.settings.storage" = "存储";
+"ui.settings.config_path" = "配置路径";
+"ui.settings.skills_path" = "技能文件夹";
+"ui.settings.config_path_footer" = "技能会存储在所选配置路径下的 skills 文件夹中。";
 
 /* AgentDetailView */
 "ui.label.no_agents" = "暂无智能体";
-"ui.hint.no_agents" = "点击智能体按钮以启用预设智能体或添加自定义智能体。";
+"ui.hint.no_agents" = "打开设置以启用预设智能体或添加自定义智能体。";
 "ui.label.no_skills_linked" = "暂无关联技能";
 
 /* Status messages */
