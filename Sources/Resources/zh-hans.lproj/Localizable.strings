@@ -6,6 +6,7 @@
 "ui.action.add_skill" = "添加技能";
 "ui.label.agents" = "智能体";
 "ui.action.sync" = "同步";
+"ui.action.update" = "更新";
 "ui.action.copy_to_project" = "复制到项目";
 "ui.hint.copy_to_project" = "将此技能复制到项目目录";
 "alert.delete.title" = "删除 %lld 个技能？";
@@ -87,6 +88,13 @@
 "status.syncing_links" = "正在同步链接...";
 "status.all_links_valid" = "所有链接均有效。";
 "status.repaired_links" = "已修复 %lld 个失效链接。";
+"status.sync_failed" = "同步链接失败。";
+"status.no_git_sources" = "没有可更新的 Git 来源技能。";
+"status.fetching_updates" = "正在获取更新...";
+"status.updating_skill" = "正在更新 %lld/%lld：%@";
+"status.update_complete" = "已更新 %lld 个技能。";
+"status.update_failed" = "%lld 个技能更新失败。";
+"status.update_complete_with_failures" = "已更新 %lld 个技能，%lld 个失败。";
 
 /* Errors */
 "error.invalid_git_url" = "无效的 Git 仓库 URL。预期格式：https://github.com/{owner}/{repo}/tree/{branch}/{path}";

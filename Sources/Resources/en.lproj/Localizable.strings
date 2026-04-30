@@ -6,6 +6,7 @@
 "ui.action.add_skill" = "Add Skill";
 "ui.label.agents" = "Agents";
 "ui.action.sync" = "Sync";
+"ui.action.update" = "Update";
 "ui.action.copy_to_project" = "Copy to Project";
 "ui.hint.copy_to_project" = "Copy this skill to a project directory";
 "alert.delete.title" = "Delete %lld skill(s)?";
@@ -87,6 +88,13 @@
 "status.syncing_links" = "Syncing links...";
 "status.all_links_valid" = "All links are valid.";
 "status.repaired_links" = "Repaired %lld broken link(s).";
+"status.sync_failed" = "Failed to sync links.";
+"status.no_git_sources" = "No Git-sourced skills to update.";
+"status.fetching_updates" = "Fetching updates...";
+"status.updating_skill" = "Updating %lld/%lld: %@";
+"status.update_complete" = "Updated %lld skill(s).";
+"status.update_failed" = "Failed to update %lld skill(s).";
+"status.update_complete_with_failures" = "Updated %lld skill(s), %lld failed.";
 
 /* Errors */
 "error.invalid_git_url" = "Invalid Git repository URL. Expected format: https://github.com/{owner}/{repo}/tree/{branch}/{path}";

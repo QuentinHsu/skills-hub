@@ -14,7 +14,7 @@ struct ContentView: View {
 
     private var selectedSkill: Skill? {
         if case .skill(let skill) = detailItem {
-            return skill
+            return manager.skills.first { $0.id == skill.id } ?? skill
         }
         return nil
     }
@@ -79,11 +79,12 @@ struct ContentView: View {
 
                 Button {
                     Task {
-                        try? await manager.syncAll()
+                        await manager.updateAllFromSources()
                     }
                 } label: {
-                    Label(L.string("ui.action.sync", using: lm), systemImage: "arrow.triangle.2.circlepath")
+                    Label(L.string("ui.action.update", using: lm), systemImage: "arrow.triangle.2.circlepath")
                 }
+                .disabled(manager.isLoading)
 
                 if selectedSkill != nil {
                     Button {
@@ -151,42 +152,106 @@ struct ContentView: View {
             manager.scan()
         }
         .overlay {
-            if manager.isLoading {
-                VStack {
-                    ProgressView()
-                    if let key = manager.statusMessageKey, let arg = manager.statusMessageArg {
-                        L.text(key, arg, using: lm)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else if let key = manager.statusMessageKey {
-                        L.text(key, using: lm)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        L.text("ui.label.loading", using: lm)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            if manager.isLoading || manager.statusMessageKey != nil {
+                VStack(spacing: 8) {
+                    if manager.isLoading, manager.progressTotal > 0 {
+                        ProgressView(
+                            value: Double(manager.progressCurrent),
+                            total: Double(manager.progressTotal)
+                        )
+                        .frame(width: 240)
+                    } else if manager.isLoading {
+                        ProgressView()
                     }
+
+                    statusText
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 280)
                 }
                 .padding()
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
             }
         }
         .onChange(of: manager.statusMessageKey) { _, newValue in
-            if newValue != nil, !manager.isLoading {
-                Task {
-                    try? await Task.sleep(for: .seconds(3))
-                    manager.statusMessageKey = nil
-                }
+            if newValue != nil {
+                clearStatusMessageWhenIdle()
             }
+        }
+        .onChange(of: manager.isLoading) { _, isLoading in
+            if !isLoading, manager.statusMessageKey != nil {
+                clearStatusMessageWhenIdle()
+            }
+        }
+        .onChange(of: manager.skillsRevision) {
+            refreshSelectionFromLatestSkills()
+        }
+    }
+
+    private var statusText: Text {
+        if let key = manager.progressMessageKey,
+           let item = manager.progressItemName,
+           manager.progressTotal > 0
+        {
+            return L.text(key, manager.progressCurrent, manager.progressTotal, item, using: lm)
+        }
+
+        if let key = manager.statusMessageKey,
+           let arg = manager.statusMessageArg,
+           let arg2 = manager.statusMessageArg2
+        {
+            return L.text(key, arg, arg2, using: lm)
+        }
+
+        if let key = manager.statusMessageKey, let arg = manager.statusMessageArg {
+            return L.text(key, arg, using: lm)
+        }
+
+        if let key = manager.statusMessageKey {
+            return L.text(key, using: lm)
+        }
+
+        return L.text("ui.label.loading", using: lm)
+    }
+
+    private func clearStatusMessageWhenIdle() {
+        guard !manager.isLoading else { return }
+
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            guard !manager.isLoading else { return }
+            manager.statusMessageKey = nil
+            manager.statusMessageArg = nil
+            manager.statusMessageArg2 = nil
+        }
+    }
+
+    private func refreshSelectionFromLatestSkills() {
+        detailItem = refreshedItem(detailItem)
+        selectedItems = Set(selectedItems.compactMap(refreshedItem))
+    }
+
+    private func refreshedItem(_ item: SidebarItem?) -> SidebarItem? {
+        guard let item else { return nil }
+
+        switch item {
+        case .skill(let skill):
+            guard let latest = manager.skills.first(where: { $0.id == skill.id }) else {
+                return nil
+            }
+            return .skill(latest)
+        case .agent(let agent):
+            let latest = manager.agents.first(where: { $0.id == agent.id }) ?? agent
+            return .agent(latest)
         }
     }
 
     @ViewBuilder
     private var detailView: some View {
         switch detailItem {
-        case .skill(let skill):
-            SkillDetailView(manager: manager, skill: skill)
+        case .skill:
+            SkillDetailView(manager: manager, skill: selectedSkill)
                 .environment(lm)
         case .agent:
             AgentDetailView(manager: manager)

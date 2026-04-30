@@ -10,6 +10,12 @@ final class SkillManager {
     var isLoading: Bool = false
     var statusMessageKey: String?
     var statusMessageArg: Int64?
+    var statusMessageArg2: Int64?
+    var progressCurrent: Int64 = 0
+    var progressTotal: Int64 = 0
+    var progressItemName: String?
+    var progressMessageKey: String?
+    var skillsRevision: Int = 0
 
     /// Discovery state for selective import
     var discoveredSkills: [GitService.DiscoveredSkill] = []
@@ -65,6 +71,7 @@ final class SkillManager {
     func scan() {
         skills = skillService.scan()
         ensureAllSkillsLinkedToEnabledAgents()
+        markSkillsChanged()
     }
 
     // MARK: - Add Skill
@@ -74,6 +81,7 @@ final class SkillManager {
         skills.append(skill)
         sortSkills()
         ensureAllSkillsLinkedToEnabledAgents()
+        markSkillsChanged()
     }
 
     func addSkills(fromGitURL gitURLString: String) async throws -> [Skill] {
@@ -83,6 +91,8 @@ final class SkillManager {
             isLoading = false
             statusMessageKey = nil
             statusMessageArg = nil
+            statusMessageArg2 = nil
+            resetProgress()
         }
 
         let info = try gitService.parseURL(gitURLString)
@@ -112,6 +122,7 @@ final class SkillManager {
         }
         sortSkills()
         ensureAllSkillsLinkedToEnabledAgents()
+        markSkillsChanged()
 
         return addedSkills
     }
@@ -152,6 +163,8 @@ final class SkillManager {
             isLoading = false
             statusMessageKey = nil
             statusMessageArg = nil
+            statusMessageArg2 = nil
+            resetProgress()
         }
 
         let toImport = discoveredSkills.filter { selectedIDs.contains($0.id) }
@@ -180,6 +193,7 @@ final class SkillManager {
         }
         sortSkills()
         ensureAllSkillsLinkedToEnabledAgents()
+        markSkillsChanged()
 
         return addedSkills
     }
@@ -198,6 +212,7 @@ final class SkillManager {
     func removeSkill(_ skill: Skill) throws {
         try skillService.removeSkill(skill)
         skills.removeAll { $0.id == skill.id }
+        markSkillsChanged()
     }
 
     @discardableResult
@@ -233,22 +248,120 @@ final class SkillManager {
 
     // MARK: - Sync
 
-    func syncAll() async throws {
+    func updateAllFromSources() async {
         isLoading = true
-        statusMessageKey = "status.syncing_links"
+        statusMessageKey = nil
+        statusMessageArg = nil
+        statusMessageArg2 = nil
+        resetProgress()
+
         defer {
             isLoading = false
-            statusMessageKey = nil
-            statusMessageArg = nil
+            resetProgress()
         }
 
-        let repairs = try skillService.syncAll(agents: agents)
+        let sourceSkills = skills.filter { $0.sourceURL != nil }
+        guard !sourceSkills.isEmpty else {
+            statusMessageKey = "status.no_git_sources"
+            return
+        }
+
+        statusMessageKey = "status.fetching_updates"
+        progressTotal = Int64(sourceSkills.count)
+        progressMessageKey = "status.updating_skill"
+
+        var updatedCount = 0
+        var failedCount = 0
+        var processedCount: Int64 = 0
+        let skillsBySource = Dictionary(grouping: sourceSkills) { $0.sourceURL!.absoluteString }
+
+        for sourceKey in skillsBySource.keys.sorted() {
+            guard let groupedSkills = skillsBySource[sourceKey],
+                  let sourceURL = groupedSkills.first?.sourceURL
+            else {
+                continue
+            }
+
+            do {
+                let info = try gitService.parseURL(sourceURL.absoluteString)
+                let result = try await gitService.discoverSkills(from: info)
+                defer {
+                    try? FileManager.default.removeItem(at: result.stagingDirectory)
+                }
+
+                for skill in groupedSkills.sorted(by: { $0.name < $1.name }) {
+                    processedCount += 1
+                    progressCurrent = processedCount
+                    progressItemName = skill.name
+
+                    guard let discovered = matchingDiscoveredSkill(for: skill, in: result.skills) else {
+                        failedCount += 1
+                        continue
+                    }
+
+                    do {
+                        let updatedSkill = try skillService.addSkill(
+                            from: discovered.stagedDirectory,
+                            sourceGitURL: sourceURL
+                        )
+                        if let idx = skills.firstIndex(where: { $0.directoryName == updatedSkill.directoryName }) {
+                            skills[idx] = updatedSkill
+                        } else {
+                            skills.append(updatedSkill)
+                        }
+                        updatedCount += 1
+                    } catch {
+                        failedCount += 1
+                    }
+                }
+            } catch {
+                for skill in groupedSkills.sorted(by: { $0.name < $1.name }) {
+                    processedCount += 1
+                    progressCurrent = processedCount
+                    progressItemName = skill.name
+                    failedCount += 1
+                }
+            }
+        }
+
+        sortSkills()
+        ensureAllSkillsLinkedToEnabledAgents()
         scan()
-        if repairs.isEmpty {
-            statusMessageKey = "status.all_links_valid"
+
+        if failedCount == 0 {
+            statusMessageKey = "status.update_complete"
+            statusMessageArg = Int64(updatedCount)
+        } else if updatedCount == 0 {
+            statusMessageKey = "status.update_failed"
+            statusMessageArg = Int64(failedCount)
         } else {
-            statusMessageKey = "status.repaired_links"
-            statusMessageArg = Int64(repairs.count)
+            statusMessageKey = "status.update_complete_with_failures"
+            statusMessageArg = Int64(updatedCount)
+            statusMessageArg2 = Int64(failedCount)
+        }
+    }
+
+    func syncAll() async {
+        isLoading = true
+        statusMessageKey = "status.syncing_links"
+        statusMessageArg = nil
+        statusMessageArg2 = nil
+        defer {
+            isLoading = false
+            resetProgress()
+        }
+
+        do {
+            let repairs = try skillService.syncAll(agents: agents)
+            scan()
+            if repairs.isEmpty {
+                statusMessageKey = "status.all_links_valid"
+            } else {
+                statusMessageKey = "status.repaired_links"
+                statusMessageArg = Int64(repairs.count)
+            }
+        } catch {
+            statusMessageKey = "status.sync_failed"
         }
     }
 
@@ -325,6 +438,28 @@ final class SkillManager {
         for skill in skills {
             try? skillService.unlinkSkill(skill, from: agent)
         }
+    }
+
+    private func matchingDiscoveredSkill(
+        for skill: Skill,
+        in discoveredSkills: [GitService.DiscoveredSkill]
+    ) -> GitService.DiscoveredSkill? {
+        discoveredSkills.first {
+            $0.stagedDirectory.lastPathComponent == skill.directoryName
+        } ?? discoveredSkills.first {
+            $0.name.caseInsensitiveCompare(skill.name) == .orderedSame
+        } ?? (discoveredSkills.count == 1 ? discoveredSkills[0] : nil)
+    }
+
+    private func resetProgress() {
+        progressCurrent = 0
+        progressTotal = 0
+        progressItemName = nil
+        progressMessageKey = nil
+    }
+
+    private func markSkillsChanged() {
+        skillsRevision += 1
     }
 
     // MARK: - Sort

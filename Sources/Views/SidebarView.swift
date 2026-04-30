@@ -55,6 +55,7 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .id(manager.skillsRevision)
         .onChange(of: selectedItems) {
             syncSelection()
         }
