@@ -1,4 +1,5 @@
 import SwiftUI
+@preconcurrency import MarkdownUI
 
 struct SkillDetailView: View {
     @Environment(LocalizationManager.self) private var lm
@@ -133,12 +134,7 @@ private struct SkillDetailContent: View {
     }
 
     private var skillContent: some View {
-        Text(skill.content)
-            .font(.system(.body, design: .monospaced))
-            .textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(.background, in: RoundedRectangle(cornerRadius: 8))
+        MarkdownContentView(markdown: skill.content, baseURL: skill.directoryURL)
     }
 
     private var rulesSection: some View {
@@ -171,4 +167,186 @@ private struct SkillDetailContent: View {
             }
         }
     }
+}
+
+private struct MarkdownContentView: View {
+    let markdown: String
+    let baseURL: URL
+
+    var body: some View {
+        Markdown(markdown, baseURL: baseURL, imageBaseURL: baseURL)
+            .markdownTheme(.skillDetail)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 2)
+    }
+}
+
+private extension Theme {
+    @MainActor
+    static var skillDetail: Theme {
+        Theme()
+        .text {
+            ForegroundColor(.skillMarkdownText)
+            BackgroundColor(nil)
+            FontSize(14)
+        }
+        .code {
+            FontFamilyVariant(.monospaced)
+            FontSize(.em(0.9))
+            ForegroundColor(.skillMarkdownText)
+            BackgroundColor(.skillMarkdownInlineCodeBackground)
+        }
+        .strong {
+            FontWeight(.semibold)
+        }
+        .link {
+            ForegroundColor(.skillMarkdownLink)
+        }
+        .heading1 { configuration in
+            configuration.label
+                .relativeLineSpacing(.em(0.12))
+                .markdownMargin(top: 4, bottom: 12)
+                .markdownTextStyle {
+                    FontWeight(.semibold)
+                    FontSize(.em(1.45))
+                }
+        }
+        .heading2 { configuration in
+            configuration.label
+                .relativeLineSpacing(.em(0.12))
+                .markdownMargin(top: 18, bottom: 10)
+                .markdownTextStyle {
+                    FontWeight(.semibold)
+                    FontSize(.em(1.2))
+                }
+        }
+        .heading3 { configuration in
+            configuration.label
+                .relativeLineSpacing(.em(0.12))
+                .markdownMargin(top: 16, bottom: 8)
+                .markdownTextStyle {
+                    FontWeight(.semibold)
+                    FontSize(.em(1.08))
+                }
+        }
+        .heading4 { configuration in
+            configuration.label
+                .relativeLineSpacing(.em(0.12))
+                .markdownMargin(top: 14, bottom: 8)
+                .markdownTextStyle {
+                    FontWeight(.semibold)
+                }
+        }
+        .heading5 { configuration in
+            configuration.label
+                .markdownMargin(top: 12, bottom: 8)
+                .markdownTextStyle {
+                    FontWeight(.semibold)
+                    FontSize(.em(0.95))
+                }
+        }
+        .heading6 { configuration in
+            configuration.label
+                .markdownMargin(top: 12, bottom: 8)
+                .markdownTextStyle {
+                    FontWeight(.semibold)
+                    FontSize(.em(0.9))
+                    ForegroundColor(.skillMarkdownSecondaryText)
+                }
+        }
+        .paragraph { configuration in
+            configuration.label
+                .fixedSize(horizontal: false, vertical: true)
+                .relativeLineSpacing(.em(0.28))
+                .markdownMargin(top: 0, bottom: 12)
+        }
+        .blockquote { configuration in
+            HStack(spacing: 0) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.skillMarkdownAccent)
+                    .relativeFrame(width: .em(0.16))
+
+                configuration.label
+                    .markdownTextStyle {
+                        ForegroundColor(.skillMarkdownSecondaryText)
+                        BackgroundColor(nil)
+                    }
+                    .relativePadding(.horizontal, length: .em(0.85))
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 5)
+            .background(Color.skillMarkdownBlockBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .markdownMargin(top: 0, bottom: 12)
+        }
+        .codeBlock { configuration in
+            ScrollView(.horizontal) {
+                configuration.label
+                    .fixedSize(horizontal: false, vertical: true)
+                    .relativeLineSpacing(.em(0.22))
+                    .markdownTextStyle {
+                        FontFamilyVariant(.monospaced)
+                        FontSize(.em(0.9))
+                        BackgroundColor(nil)
+                    }
+                    .padding(12)
+            }
+            .background(Color.skillMarkdownBlockBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay {
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.skillMarkdownBorder, lineWidth: 1)
+            }
+            .markdownMargin(top: 0, bottom: 12)
+        }
+        .listItem { configuration in
+            configuration.label
+                .markdownMargin(top: .em(0.2))
+        }
+        .taskListMarker { configuration in
+            Image(systemName: configuration.isCompleted ? "checkmark.square.fill" : "square")
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(Color.skillMarkdownAccent, Color.skillMarkdownSecondaryText)
+                .imageScale(.small)
+                .relativeFrame(minWidth: .em(1.5), alignment: .trailing)
+        }
+        .table { configuration in
+            configuration.label
+                .fixedSize(horizontal: false, vertical: true)
+                .markdownTableBorderStyle(.init(color: .skillMarkdownBorder))
+                .markdownTableBackgroundStyle(
+                    .alternatingRows(.clear, .skillMarkdownBlockBackground)
+                )
+                .markdownMargin(top: 0, bottom: 12)
+        }
+        .tableCell { configuration in
+            configuration.label
+                .markdownTextStyle {
+                    if configuration.row == 0 {
+                        FontWeight(.semibold)
+                    }
+                    BackgroundColor(nil)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .relativeLineSpacing(.em(0.22))
+        }
+        .thematicBreak {
+            Divider()
+                .overlay(Color.skillMarkdownBorder)
+                .markdownMargin(top: 18, bottom: 18)
+        }
+    }
+}
+
+private extension Color {
+    static var skillMarkdownBlockBackground: Color { Color(nsColor: .quaternaryLabelColor).opacity(0.12) }
+    static var skillMarkdownInlineCodeBackground: Color { Color(nsColor: .quaternaryLabelColor).opacity(0.16) }
+    static var skillMarkdownBorder: Color { Color(nsColor: .separatorColor).opacity(0.36) }
+    static var skillMarkdownText: Color { Color(nsColor: .labelColor) }
+    static var skillMarkdownSecondaryText: Color { Color(nsColor: .secondaryLabelColor) }
+    static var skillMarkdownLink: Color { Color(nsColor: .linkColor) }
+    static var skillMarkdownAccent: Color { .accentColor }
 }
