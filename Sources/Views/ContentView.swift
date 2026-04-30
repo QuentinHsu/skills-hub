@@ -46,7 +46,7 @@ struct ContentView: View {
                     Button {
                         showBatchDeleteConfirm = true
                     } label: {
-                        Label(L.string("ui.action.delete_count", [Int64(selectedSkillCount)], using: lm), systemImage: "trash")
+                        Label(L.string("ui.action.delete_count", Int64(selectedSkillCount), using: lm), systemImage: "trash")
                     }
                     .tint(.red)
                 }
@@ -113,7 +113,7 @@ struct ContentView: View {
                 }
             }
         }
-        .alert(L.string("alert.delete.title", [Int64(selectedSkillCount)], using: lm), isPresented: $showBatchDeleteConfirm) {
+        .alert(L.string("alert.delete.title", Int64(selectedSkillCount), using: lm), isPresented: $showBatchDeleteConfirm) {
             Button(L.string("ui.action.cancel", using: lm), role: .cancel) {}
             Button(L.string("ui.action.delete", using: lm), role: .destructive) {
                 let skillsToDelete = selectedItems.compactMap { item -> Skill? in
@@ -155,7 +155,7 @@ struct ContentView: View {
                 VStack {
                     ProgressView()
                     if let key = manager.statusMessageKey, let arg = manager.statusMessageArg {
-                        L.text(key, [arg], using: lm)
+                        L.text(key, arg, using: lm)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else if let key = manager.statusMessageKey {

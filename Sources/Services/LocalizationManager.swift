@@ -79,21 +79,8 @@ final class LocalizationManager {
 // MARK: - Localized Text Helpers
 
 enum L {
-    /// Localized `Text` — pass `lm` from `@Environment` so SwiftUI tracks the dependency.
     @MainActor
-    static func text(_ key: String, _ args: any CVarArg..., using lm: LocalizationManager) -> Text {
-        // Touch lm.currentLanguage so SwiftUI re-evaluates on language change.
-        let lang = lm.currentLanguage
-        let template = LocalizationManager.t(key, lang: lang)
-        if args.isEmpty {
-            return Text(template)
-        }
-        return Text(String(format: template, arguments: args))
-    }
-
-    /// Localized `String` — pass `lm` from `@Environment` so SwiftUI tracks the dependency.
-    @MainActor
-    static func string(_ key: String, _ args: any CVarArg..., using lm: LocalizationManager) -> String {
+    private static func format(_ key: String, _ args: [any CVarArg], using lm: LocalizationManager) -> String {
         let lang = lm.currentLanguage
         let template = LocalizationManager.t(key, lang: lang)
         if args.isEmpty {
@@ -102,8 +89,20 @@ enum L {
         return String(format: template, arguments: args)
     }
 
+    /// Localized `Text` — pass `lm` from `@Environment` so SwiftUI tracks the dependency.
+    @MainActor
+    static func text(_ key: String, _ args: any CVarArg..., using lm: LocalizationManager) -> Text {
+        Text(format(key, args, using: lm))
+    }
+
+    /// Localized `String` — pass `lm` from `@Environment` so SwiftUI tracks the dependency.
+    @MainActor
+    static func string(_ key: String, _ args: any CVarArg..., using lm: LocalizationManager) -> String {
+        format(key, args, using: lm)
+    }
+
     @MainActor
     static func label(_ key: String, systemImage: String, _ args: any CVarArg..., using lm: LocalizationManager) -> some View {
-        Label(L.string(key, args, using: lm), systemImage: systemImage)
+        Label(format(key, args, using: lm), systemImage: systemImage)
     }
 }

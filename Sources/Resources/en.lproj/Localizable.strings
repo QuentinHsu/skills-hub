@@ -19,7 +19,7 @@
 /* SidebarView */
 "ui.label.no_skills" = "No Skills";
 "ui.hint.no_skills" = "Click + to add skills from local files or Git repositories.";
-"ui.sidebar.skills_count" = "Skills";
+"ui.sidebar.skills_count" = "Skills (%lld)";
 "ui.sidebar.agents_count" = "Agents (%lld)";
 "time.just_now" = "just now";
 "time.minutes_ago" = "%lldm ago";

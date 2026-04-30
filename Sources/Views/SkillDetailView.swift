@@ -142,7 +142,7 @@ private struct SkillDetailContent: View {
 
     private var rulesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            L.text("ui.skill.rules_count", [Int64(skill.ruleFiles.count)], using: lm)
+            L.text("ui.skill.rules_count", Int64(skill.ruleFiles.count), using: lm)
                 .font(.headline)
 
             ForEach(skill.ruleFiles, id: \.self) { rulePath in

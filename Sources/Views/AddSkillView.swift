@@ -174,7 +174,7 @@ struct AddSkillView: View {
             // Import result
             if !importedSkills.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    L.text("ui.add_skill.imported_count", [Int64(importedSkills.count)], using: lm)
+                    L.text("ui.add_skill.imported_count", Int64(importedSkills.count), using: lm)
                         .font(.caption.bold())
                     ForEach(importedSkills) { skill in
                         HStack(spacing: 4) {
@@ -218,7 +218,7 @@ struct AddSkillView: View {
     private var discoveredSkillsList: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                L.text("ui.add_skill.discovered_count", [Int64(manager.discoveredSkills.count)], using: lm)
+                L.text("ui.add_skill.discovered_count", Int64(manager.discoveredSkills.count), using: lm)
                     .font(.caption.bold())
                 Spacer()
                 Button(L.string("ui.action.select_all", using: lm)) {
