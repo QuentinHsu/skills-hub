@@ -5,44 +5,49 @@ struct SettingsView: View {
 
     let manager: SkillManager
 
-    @State private var selectedSection: SettingsSection = .general
+    @State private var selectedSection: SettingsSection? = .general
+    @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
     @State private var configPath = ""
     @State private var showingAddCustomAgent = false
 
+    private var currentSection: SettingsSection {
+        selectedSection ?? .general
+    }
+
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                Picker("", selection: $selectedSection) {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            List(selection: $selectedSection) {
+                Section {
                     ForEach(SettingsSection.allCases) { section in
-                        Text(section.title(using: lm))
+                        Label(section.title(using: lm), systemImage: section.systemImage)
                             .tag(section)
                     }
+                } header: {
+                    L.text("ui.settings.title", using: lm)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 220)
-                .padding(.top, 12)
-                .padding(.bottom, 10)
-
-                Divider()
-
-                detailView
             }
             .navigationTitle(L.string("ui.settings.title", using: lm))
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
+        } detail: {
+            detailView
+                .navigationTitle(currentSection.title(using: lm))
         }
+        .navigationSplitViewStyle(.balanced)
         .sheet(isPresented: $showingAddCustomAgent) {
             AddCustomAgentView(manager: manager)
                 .environment(lm)
         }
         .onAppear {
             syncConfigPathFromManager()
+            selectedSection = currentSection
         }
-        .frame(minWidth: 620, idealWidth: 680, minHeight: 460, idealHeight: 520)
+        .frame(minWidth: 680, idealWidth: 760, minHeight: 460, idealHeight: 520)
     }
 
     @ViewBuilder
     private var detailView: some View {
-        switch selectedSection {
+        switch currentSection {
         case .general:
             generalSettings
         case .agents:
@@ -69,7 +74,7 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.menu)
                     .labelsHidden()
-                    .frame(width: 180)
+                    .frame(width: 180, alignment: .trailing)
                 }
                 .padding(.vertical, 2)
             } header: {
@@ -201,6 +206,15 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
             L.string("ui.settings.general", using: lm)
         case .agents:
             L.string("ui.label.agents", using: lm)
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .general:
+            "gearshape"
+        case .agents:
+            "person.2"
         }
     }
 }
