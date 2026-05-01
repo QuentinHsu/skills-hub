@@ -7,6 +7,8 @@
     <string>SkillsHub</string>
     <key>CFBundleDisplayName</key>
     <string>Skills Hub</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>com.skillshub.app</string>
     <key>CFBundleVersion</key>
