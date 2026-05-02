@@ -31,48 +31,65 @@ struct AgentManagementList: View {
     @Binding var showingAddCustom: Bool
 
     var body: some View {
-        List {
-            // Built-in agents with toggles
-            Section {
-                ForEach(BuiltInAgent.allCases) { agent in
-                    BuiltInAgentRow(manager: manager, agent: agent)
-                }
-            } header: {
-                L.text("ui.agent.preset_agents", using: lm)
-            } footer: {
-                L.text("ui.hint.preset_agents", using: lm)
+        SettingsPage {
+            let builtInAgents = BuiltInAgent.allCases
+            let customAgents = manager.agents.filter { agent in
+                !BuiltInAgent.allCases.contains { $0.rawValue == agent.id }
             }
 
-            // Custom agents
-            Section {
-                let customAgents = manager.agents.filter { agent in
-                    !BuiltInAgent.allCases.contains { $0.rawValue == agent.id }
+            SettingsCard(L.string("ui.agent.preset_agents", using: lm)) {
+                ForEach(Array(builtInAgents.enumerated()), id: \.element.id) { index, agent in
+                    BuiltInAgentRow(manager: manager, agent: agent)
+
+                    if index < builtInAgents.count - 1 {
+                        SettingsDivider()
+                    }
                 }
 
-                if customAgents.isEmpty {
-                    L.text("ui.label.no_custom_agents", using: lm)
-                        .foregroundStyle(.secondary)
-                        .italic()
-                } else {
-                    ForEach(customAgents) { agent in
-                        CustomAgentRow(manager: manager, agent: agent)
-                    }
-                    .onDelete { indexSet in
-                        for index in indexSet {
-                            manager.removeAgent(customAgents[index])
-                        }
-                    }
-                }
-            } header: {
+                SettingsDivider()
+
+                L.text("ui.hint.preset_agents", using: lm)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+            }
+
+            SettingsCard {
                 HStack {
-                    L.text("ui.agent.custom_agents", using: lm)
+                    Text(L.string("ui.agent.custom_agents", using: lm))
+                        .font(.subheadline.weight(.semibold))
+
                     Spacer()
+
                     Button {
                         showingAddCustom = true
                     } label: {
                         Image(systemName: "plus.circle")
                     }
                     .buttonStyle(.borderless)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+
+                if customAgents.isEmpty {
+                    SettingsDivider()
+
+                    L.text("ui.label.no_custom_agents", using: lm)
+                        .foregroundStyle(.secondary)
+                        .italic()
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                } else {
+                    SettingsDivider()
+
+                    ForEach(Array(customAgents.enumerated()), id: \.element.id) { index, agent in
+                        CustomAgentRow(manager: manager, agent: agent)
+
+                        if index < customAgents.count - 1 {
+                            SettingsDivider()
+                        }
+                    }
                 }
             }
         }
@@ -113,7 +130,9 @@ private struct BuiltInAgentRow: View {
                 .controlSize(.small)
                 .labelsHidden()
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(minHeight: 42)
         .onChange(of: isEnabled) { _, newValue in
             manager.toggleBuiltInAgent(agent, enabled: newValue)
         }
@@ -151,7 +170,9 @@ private struct CustomAgentRow: View {
             }
             .buttonStyle(.borderless)
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(minHeight: 42)
     }
 }
 

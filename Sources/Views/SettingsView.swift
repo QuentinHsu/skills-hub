@@ -55,7 +55,6 @@ struct SettingsView: View {
             generalSettings
         case .agents:
             AgentManagementList(manager: manager, showingAddCustom: $showingAddCustomAgent)
-                .listStyle(.inset)
         case .repositories:
             repositorySettings
         case .about:
@@ -64,13 +63,11 @@ struct SettingsView: View {
     }
 
     private var generalSettings: some View {
-        List {
-            Section {
-                HStack {
+        SettingsPage {
+            SettingsCard {
+                SettingsRow {
                     L.text("ui.settings.language", using: lm)
-
-                    Spacer()
-
+                } trailing: {
                     Picker("", selection: Binding(
                         get: { lm.currentLanguage },
                         set: { lm.currentLanguage = $0 }
@@ -83,12 +80,9 @@ struct SettingsView: View {
                     .labelsHidden()
                     .frame(width: 180, alignment: .trailing)
                 }
-                .padding(.vertical, 2)
-            } header: {
-                L.text("ui.settings.appearance", using: lm)
             }
 
-            Section {
+            SettingsCard(L.string("ui.settings.storage", using: lm)) {
                 VStack(alignment: .leading, spacing: 8) {
                     L.text("ui.settings.config_path", using: lm)
                         .font(.subheadline.weight(.medium))
@@ -109,9 +103,13 @@ struct SettingsView: View {
                         .help(L.string("ui.action.browse", using: lm))
                     }
                 }
-                .padding(.vertical, 2)
+                .padding(.horizontal, 12)
+                .padding(.top, 2)
+                .padding(.bottom, 10)
 
-                HStack(alignment: .center, spacing: 12) {
+                SettingsDivider()
+
+                SettingsRow {
                     VStack(alignment: .leading, spacing: 3) {
                         L.text("ui.settings.skills_path", using: lm)
                             .font(.subheadline.weight(.medium))
@@ -123,36 +121,38 @@ struct SettingsView: View {
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
+                } trailing: {
+                    HStack(spacing: 8) {
+                        Button {
+                            configPath = displayPath(for: ConfigService.defaultConfigDirectory)
+                        } label: {
+                            Label(L.string("ui.action.reset", using: lm), systemImage: "arrow.counterclockwise")
+                        }
 
-                    Spacer(minLength: 12)
-
-                    Button {
-                        configPath = displayPath(for: ConfigService.defaultConfigDirectory)
-                    } label: {
-                        Label(L.string("ui.action.reset", using: lm), systemImage: "arrow.counterclockwise")
+                        Button {
+                            applyConfigPath()
+                        } label: {
+                            Label(L.string("ui.action.apply", using: lm), systemImage: "checkmark")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!canApplyConfigPath)
                     }
-
-                    Button {
-                        applyConfigPath()
-                    } label: {
-                        Label(L.string("ui.action.apply", using: lm), systemImage: "checkmark")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canApplyConfigPath)
                 }
-                .padding(.vertical, 2)
-            } header: {
-                L.text("ui.settings.storage", using: lm)
-            } footer: {
+
+                SettingsDivider()
+
                 L.text("ui.settings.config_path_footer", using: lm)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
             }
         }
-        .listStyle(.inset)
     }
 
     private var repositorySettings: some View {
-        List {
-            Section {
+        SettingsPage {
+            SettingsCard {
                 if manager.skillRepositories.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Label(L.string("ui.settings.repositories_empty", using: lm), systemImage: "tray")
@@ -161,9 +161,9 @@ struct SettingsView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.vertical, 6)
+                    .padding(12)
                 } else {
-                    HStack {
+                    SettingsRow {
                         VStack(alignment: .leading, spacing: 2) {
                             L.text("ui.settings.repositories_count", Int64(manager.skillRepositories.count), using: lm)
                                 .font(.subheadline.weight(.medium))
@@ -171,38 +171,40 @@ struct SettingsView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                    } trailing: {
+                        HStack(spacing: 8) {
+                            Button {
+                                Task { await manager.refreshSkillRepositories() }
+                            } label: {
+                                Label(L.string("ui.action.refresh", using: lm), systemImage: "arrow.clockwise")
+                            }
+                            .disabled(!manager.updatingRepositoryURLs.isEmpty)
 
-                        Spacer()
-
-                        Button {
-                            Task { await manager.refreshSkillRepositories() }
-                        } label: {
-                            Label(L.string("ui.action.refresh", using: lm), systemImage: "arrow.clockwise")
+                            Button {
+                                Task { await manager.updateAllFromSources() }
+                            } label: {
+                                Label(L.string("ui.action.update_all", using: lm), systemImage: "arrow.triangle.2.circlepath")
+                            }
+                            .disabled(!manager.updatingRepositoryURLs.isEmpty || manager.isLoading)
                         }
-                        .disabled(!manager.updatingRepositoryURLs.isEmpty)
-
-                        Button {
-                            Task { await manager.updateAllFromSources() }
-                        } label: {
-                            Label(L.string("ui.action.update_all", using: lm), systemImage: "arrow.triangle.2.circlepath")
-                        }
-                        .disabled(!manager.updatingRepositoryURLs.isEmpty || manager.isLoading)
                     }
-                    .padding(.vertical, 2)
                 }
             }
 
             ForEach(manager.skillRepositories) { repository in
-                Section {
+                SettingsCard {
                     repositoryHeader(repository)
 
+                    SettingsDivider()
+
                     repositoryImportedGroup(repository)
+
+                    SettingsDivider()
 
                     repositoryRemoteGroup(repository)
                 }
             }
         }
-        .listStyle(.inset)
         .task {
             guard !didRequestInitialRepositoryRefresh else { return }
             didRequestInitialRepositoryRefresh = true
@@ -252,7 +254,8 @@ struct SettingsView: View {
                     .foregroundStyle(.red)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 
     private func repositoryImportedGroup(_ repository: SkillRepositorySummary) -> some View {
@@ -293,6 +296,8 @@ struct SettingsView: View {
             )
             .font(.subheadline.weight(.medium))
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 
     private func repositoryRemoteGroup(_ repository: SkillRepositorySummary) -> some View {
@@ -363,11 +368,13 @@ struct SettingsView: View {
             )
             .font(.subheadline.weight(.medium))
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 
     private var aboutSettings: some View {
-        List {
-            Section {
+        SettingsPage {
+            SettingsCard {
                 HStack(spacing: 12) {
                     Image(nsImage: AppInfo.appIcon)
                         .resizable()
@@ -384,33 +391,38 @@ struct SettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(12)
 
-                LabeledContent {
-                    Text(AppInfo.versionDisplay)
-                } label: {
+                SettingsDivider()
+
+                SettingsRow {
                     L.text("ui.settings.version", using: lm)
+                } trailing: {
+                    Text(AppInfo.versionDisplay)
                 }
 
-                LabeledContent {
+                SettingsDivider()
+
+                SettingsRow {
+                    L.text("ui.settings.source_repository", using: lm)
+                } trailing: {
                     Link(
                         AppInfo.sourceRepository.absoluteString,
                         destination: AppInfo.sourceRepository
                     )
-                } label: {
-                    L.text("ui.settings.source_repository", using: lm)
                 }
 
-                Button {
-                    appUpdater.checkForUpdates()
-                } label: {
-                    Label(L.string("ui.app.check_for_updates", using: lm), systemImage: "arrow.down.circle")
+                SettingsDivider()
+
+                SettingsRow {
+                    Button {
+                        appUpdater.checkForUpdates()
+                    } label: {
+                        Label(L.string("ui.app.check_for_updates", using: lm), systemImage: "arrow.down.circle")
+                    }
                 }
-            } header: {
-                L.text("ui.settings.about", using: lm)
             }
         }
-        .listStyle(.inset)
     }
 
     private var canApplyConfigPath: Bool {
