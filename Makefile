@@ -6,6 +6,8 @@ RELEASE_DIR  := $(BUILD_DIR)/release
 APP_BUNDLE   := $(BUILD_DIR)/$(DISPLAY_NAME).app
 DMG_FILE     := $(BUILD_DIR)/$(DISPLAY_NAME).dmg
 INSTALL_DIR  := /Applications
+RELEASE_KIT_DIR ?= ../../open-source/workflow/release-kits/macos/swiftpm-sparkle
+RELEASE_KIT_BUILD := $(RELEASE_KIT_DIR)/Scripts/build.sh
 
 .PHONY: build clean app dmg install uninstall run
 
@@ -19,40 +21,31 @@ run:
 
 clean:
 	swift package clean
-	rm -rf "$(APP_BUNDLE)" "$(DMG_FILE)"
+	rm -rf "$(APP_BUNDLE)" "$(DMG_FILE)" dist
 
 # ─── App Bundle ───────────────────────────────────────────────
 
-app: build
-	@echo "▸ Creating $(DISPLAY_NAME).app..."
-	@rm -rf "$(APP_BUNDLE)"
-	@mkdir -p "$(APP_BUNDLE)/Contents/MacOS"
-	@mkdir -p "$(APP_BUNDLE)/Contents/Resources"
-	@cp "$(RELEASE_DIR)/$(TARGET_NAME)" "$(APP_BUNDLE)/Contents/MacOS/$(TARGET_NAME)"
-	@cp -r "$(RELEASE_DIR)/$(TARGET_NAME)_$(TARGET_NAME).bundle" "$(APP_BUNDLE)/"
-	@cp Info.plist "$(APP_BUNDLE)/Contents/"
-	@if [ -f Assets/AppIcon.icns ]; then \
-		cp Assets/AppIcon.icns "$(APP_BUNDLE)/Contents/Resources/"; \
-	fi
-	@echo "✓ $(APP_BUNDLE)"
+app:
+	@APP_PROJECT_DIR="$(CURDIR)" \
+	 APP_TARGET_NAME="$(TARGET_NAME)" \
+	 APP_DISPLAY_NAME="$(DISPLAY_NAME)" \
+	 APP_BUNDLE_ID="$(BUNDLE_ID)" \
+	 APP_MIN_MACOS="15.0" \
+	 APP_ICON_PATH="Assets/AppIcon.icns" \
+	 APP_REPOSITORY="QuentinHsu/skills-hub" \
+	 "$(RELEASE_KIT_BUILD)" app
 
 # ─── DMG ──────────────────────────────────────────────────────
 
-dmg: app
-	@echo "▸ Creating $(DISPLAY_NAME).dmg..."
-	@rm -f "$(DMG_FILE)"
-	@mkdir -p "$(BUILD_DIR)/dmg"
-	@cp -r "$(APP_BUNDLE)" "$(BUILD_DIR)/dmg/"
-	@ln -s /Applications "$(BUILD_DIR)/dmg/Applications"
-	@hdiutil create \
-		-volname "$(DISPLAY_NAME)" \
-		-fs HFS+ \
-		-srcfolder "$(BUILD_DIR)/dmg" \
-		-ov \
-		-quiet \
-		"$(DMG_FILE)"
-	@rm -rf "$(BUILD_DIR)/dmg"
-	@echo "✓ $(DMG_FILE)"
+dmg:
+	@APP_PROJECT_DIR="$(CURDIR)" \
+	 APP_TARGET_NAME="$(TARGET_NAME)" \
+	 APP_DISPLAY_NAME="$(DISPLAY_NAME)" \
+	 APP_BUNDLE_ID="$(BUNDLE_ID)" \
+	 APP_MIN_MACOS="15.0" \
+	 APP_ICON_PATH="Assets/AppIcon.icns" \
+	 APP_REPOSITORY="QuentinHsu/skills-hub" \
+	 "$(RELEASE_KIT_BUILD)" dmg
 
 # ─── Install / Uninstall ─────────────────────────────────────
 

@@ -1,0 +1,68 @@
+name: Feature Request
+description: Suggest an improvement for Skills Hub
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Preflight
+      description: Please check these before opening the issue.
+      options:
+        - label: I searched existing issues and did not find the same request.
+          required: true
+        - label: This request is about Skills Hub rather than an individual agent's own skill format or runtime behavior.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Skills Hub would this improve?
+      multiple: true
+      options:
+        - Skill import
+        - Git repository discovery
+        - Skill update
+        - Agent sync / symlinks
+        - Preset agents
+        - Custom agents
+        - Markdown preview
+        - Settings / storage path
+        - App update
+        - Release / installation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What workflow is difficult, missing, or unnecessarily manual today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior or UI you would like to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Mention workarounds or other designs you considered.
+    validations:
+      required: false
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples
+      description: Include links, screenshots, or examples from other apps if helpful.
+    validations:
+      required: false

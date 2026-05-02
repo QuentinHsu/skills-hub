@@ -1,0 +1,25 @@
+name: Release Beta DMG
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release-beta:
+    uses: QuentinHsu/workflow/.github/workflows/macos-swiftpm-sparkle-dmg-beta-release.yml@main
+    permissions:
+      contents: write
+    with:
+      beta_branch: beta
+      beta_tag: pre-release
+      app_target_name: SkillsHub
+      app_display_name: Skills Hub
+      app_bundle_id: com.skillshub.app
+      app_min_macos: "15.0"
+      app_icon_path: Assets/AppIcon.icns
+      release_kit_repository: QuentinHsu/workflow
+      release_kit_ref: main
+      release_kit_path: release-kits/macos/swiftpm-sparkle
+      sparkle_public_ed_key: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+      architectures: '["arm64","x86_64"]'
+    secrets:
+      sparkle_private_ed_key: ${{ secrets.SPARKLE_PRIVATE_ED_KEY }}

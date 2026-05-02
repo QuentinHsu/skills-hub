@@ -81,6 +81,7 @@
 "ui.action.add" = "添加";
 "ui.action.reset" = "重置";
 "ui.action.apply" = "应用";
+"ui.app.check_for_updates" = "检查更新...";
 "ui.agent.add_custom" = "添加自定义智能体";
 
 /* SettingsView */

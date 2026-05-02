@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(LocalizationManager.self) private var lm
 
     let manager: SkillManager
+    let appUpdater: AppUpdater
 
     @State private var selectedSection: SettingsSection? = .general
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
@@ -180,6 +181,12 @@ struct SettingsView: View {
                     )
                 } label: {
                     L.text("ui.settings.source_repository", using: lm)
+                }
+
+                Button {
+                    appUpdater.checkForUpdates()
+                } label: {
+                    Label(L.string("ui.app.check_for_updates", using: lm), systemImage: "arrow.down.circle")
                 }
             } header: {
                 L.text("ui.settings.about", using: lm)

@@ -1,0 +1,126 @@
+name: Bug Report
+description: Report a reproducible Skills Hub problem
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Preflight
+      description: Please check these before opening the issue.
+      options:
+        - label: I searched existing issues and did not find the same problem.
+          required: true
+        - label: I can reproduce this with the latest available Skills Hub release.
+          required: true
+        - label: I removed or redacted any private repository URLs, access tokens, and local user names from the details below.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Skills Hub is affected?
+      multiple: true
+      options:
+        - Skill import
+        - Git repository discovery
+        - Skill update
+        - Agent sync / symlinks
+        - Custom agents
+        - Markdown preview
+        - Settings / storage path
+        - App update
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: Mac architecture
+      options:
+        - Apple Silicon
+        - Intel
+        - Unknown
+    validations:
+      required: true
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: "Example: 15.4.1"
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: Skills Hub version
+      description: Open Settings -> About and copy the displayed version.
+      placeholder: "Example: 1.2.3 (45)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest sequence of actions that triggers the problem.
+      placeholder: |
+        1. Open Skills Hub
+        2. Add skill from ...
+        3. Click ...
+        4. See ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: skill-source
+    attributes:
+      label: Skill source details
+      description: If relevant, include the public Git URL, branch/path, or local folder shape. Redact private details.
+      placeholder: |
+        Source type: Git / local folder
+        URL or path shape:
+        Contains SKILL.md: yes / no
+    validations:
+      required: false
+
+  - type: textarea
+    id: agent-config
+    attributes:
+      label: Agent configuration
+      description: If sync or custom agents are involved, include enabled agents and target skills directory paths. Redact user names if needed.
+      placeholder: |
+        Enabled agents:
+        Custom agent path:
+        Config path:
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or screen recording
+      description: Drag screenshots here if they help explain the issue.
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra-context
+    attributes:
+      label: Additional context
+      description: Include any console output, crash report excerpt, or other notes that may help.
+      render: shell
+    validations:
+      required: false

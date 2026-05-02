@@ -81,6 +81,7 @@
 "ui.action.add" = "Add";
 "ui.action.reset" = "Reset";
 "ui.action.apply" = "Apply";
+"ui.app.check_for_updates" = "Check for Updates...";
 "ui.agent.add_custom" = "Add Custom Agent";
 
 /* SettingsView */

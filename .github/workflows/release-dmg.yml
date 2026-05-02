@@ -1,0 +1,44 @@
+name: Release DMG
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Optional explicit tag (v1.2.3 or 1.2.3). Leave empty to auto-increment."
+        required: false
+        type: string
+      bump:
+        description: "Version bump when tag is empty."
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+
+jobs:
+  release:
+    uses: QuentinHsu/workflow/.github/workflows/macos-swiftpm-sparkle-dmg-release.yml@main
+    permissions:
+      contents: write
+    with:
+      app_target_name: SkillsHub
+      app_display_name: Skills Hub
+      app_bundle_id: com.skillshub.app
+      app_min_macos: "15.0"
+      app_icon_path: Assets/AppIcon.icns
+      release_kit_repository: QuentinHsu/workflow
+      release_kit_ref: main
+      release_kit_path: release-kits/macos/swiftpm-sparkle
+      sparkle_public_ed_key: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || '' }}
+      bump: ${{ github.event_name == 'workflow_dispatch' && inputs.bump || 'auto' }}
+      architectures: '["arm64","x86_64"]'
+    secrets:
+      sparkle_private_ed_key: ${{ secrets.SPARKLE_PRIVATE_ED_KEY }}
