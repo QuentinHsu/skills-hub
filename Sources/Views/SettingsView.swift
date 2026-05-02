@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SettingsView: View {
@@ -53,6 +54,8 @@ struct SettingsView: View {
         case .agents:
             AgentManagementList(manager: manager, showingAddCustom: $showingAddCustomAgent)
                 .listStyle(.inset)
+        case .about:
+            aboutSettings
         }
     }
 
@@ -143,6 +146,48 @@ struct SettingsView: View {
         .listStyle(.inset)
     }
 
+    private var aboutSettings: some View {
+        List {
+            Section {
+                HStack(spacing: 12) {
+                    Image(nsImage: AppInfo.appIcon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 52, height: 52)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Skills Hub")
+                            .font(.title3.weight(.semibold))
+
+                        L.text("ui.settings.about_subtitle", using: lm)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.vertical, 4)
+
+                LabeledContent {
+                    Text(AppInfo.versionDisplay)
+                } label: {
+                    L.text("ui.settings.version", using: lm)
+                }
+
+                LabeledContent {
+                    Link(
+                        AppInfo.sourceRepository.absoluteString,
+                        destination: AppInfo.sourceRepository
+                    )
+                } label: {
+                    L.text("ui.settings.source_repository", using: lm)
+                }
+            } header: {
+                L.text("ui.settings.about", using: lm)
+            }
+        }
+        .listStyle(.inset)
+    }
+
     private var canApplyConfigPath: Bool {
         let trimmed = configPath.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
@@ -196,6 +241,7 @@ struct SettingsView: View {
 private enum SettingsSection: String, CaseIterable, Identifiable {
     case general
     case agents
+    case about
 
     var id: Self { self }
 
@@ -206,6 +252,8 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
             L.string("ui.settings.general", using: lm)
         case .agents:
             L.string("ui.label.agents", using: lm)
+        case .about:
+            L.string("ui.settings.about", using: lm)
         }
     }
 
@@ -215,6 +263,40 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
             "gearshape"
         case .agents:
             "person.2"
+        case .about:
+            "info.circle"
         }
+    }
+}
+
+private enum AppInfo {
+    static let sourceRepository = URL(string: "https://github.com/QuentinHsu/skills-hub")!
+
+    @MainActor
+    static var appIcon: NSImage {
+        NSApplication.shared.applicationIconImage
+    }
+
+    static var versionDisplay: String {
+        let info = Bundle.main.infoDictionary ?? [:]
+        let version = info["CFBundleShortVersionString"] as? String
+        let build = info["CFBundleVersion"] as? String
+
+        switch (version?.nilIfEmpty, build?.nilIfEmpty) {
+        case let (.some(version), .some(build)) where build != version:
+            return "\(version) (\(build))"
+        case let (.some(version), _):
+            return version
+        case let (_, .some(build)):
+            return build
+        default:
+            return "1.0.0"
+        }
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
     }
 }

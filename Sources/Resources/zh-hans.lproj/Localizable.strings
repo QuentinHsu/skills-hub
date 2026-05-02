@@ -92,6 +92,10 @@
 "ui.settings.config_path" = "配置路径";
 "ui.settings.skills_path" = "技能文件夹";
 "ui.settings.config_path_footer" = "技能会存储在所选配置路径下的 skills 文件夹中。";
+"ui.settings.about" = "关于";
+"ui.settings.about_subtitle" = "集中管理本地与 Git 仓库中的 AI 技能，并按智能体同步到对应目录，让 Codex、Claude、Cursor、Copilot 和自定义智能体复用同一套能力。";
+"ui.settings.version" = "版本";
+"ui.settings.source_repository" = "源码仓库";
 
 /* Status messages */
 "status.cloning_repo" = "正在克隆仓库...";

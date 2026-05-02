@@ -92,6 +92,10 @@
 "ui.settings.config_path" = "Config Path";
 "ui.settings.skills_path" = "Skills folder";
 "ui.settings.config_path_footer" = "Skills are stored under the selected config path in a skills folder.";
+"ui.settings.about" = "About";
+"ui.settings.about_subtitle" = "Collect AI skills from local folders and Git repositories, then sync them into each agent's skills directory so Codex, Claude, Cursor, Copilot, and custom agents can share the same capabilities.";
+"ui.settings.version" = "Version";
+"ui.settings.source_repository" = "Source repository";
 
 /* Status messages */
 "status.cloning_repo" = "Cloning repository...";
