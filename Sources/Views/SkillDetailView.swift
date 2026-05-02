@@ -257,14 +257,10 @@ private struct CodeContentView: View {
                 .textSelection(.enabled)
                 .fixedSize(horizontal: true, vertical: false)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.skillMarkdownBlockBackground, in: RoundedRectangle(cornerRadius: 6))
-        .overlay {
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(Color.skillMarkdownBorder, lineWidth: 1)
-        }
+        .padding(.top, -10)
+        .padding(.bottom, 2)
     }
 }
 
