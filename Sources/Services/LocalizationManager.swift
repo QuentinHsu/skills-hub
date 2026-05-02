@@ -67,10 +67,11 @@ final class LocalizationManager {
     }
 
     nonisolated private static func loadBundle(for lang: AppLanguage) -> Bundle {
-        guard let lprojURL = Bundle.module.url(forResource: lang.lprojName, withExtension: "lproj"),
+        let resourceBundle = AppResourceBundle.bundle
+        guard let lprojURL = resourceBundle.url(forResource: lang.lprojName, withExtension: "lproj"),
               let bundle = Bundle(url: lprojURL)
         else {
-            return Bundle.module
+            return resourceBundle
         }
         return bundle
     }

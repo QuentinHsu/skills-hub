@@ -138,8 +138,8 @@ private enum AgentLogoLoader {
     }
 
     private static func resourceURL(named name: String) -> URL? {
-        Bundle.module.url(forResource: name, withExtension: "svg", subdirectory: "AgentLogos")
-            ?? Bundle.module.url(forResource: name, withExtension: "svg")
+        AppResourceBundle.bundle.url(forResource: name, withExtension: "svg", subdirectory: "AgentLogos")
+            ?? AppResourceBundle.bundle.url(forResource: name, withExtension: "svg")
     }
 
     private static func parseViewBox(_ string: String) -> CGRect? {
