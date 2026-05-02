@@ -251,13 +251,12 @@ private struct CodeContentView: View {
     let code: String
 
     var body: some View {
-        ScrollView(.horizontal) {
-            Text(code)
-                .font(.system(.body, design: .monospaced))
-                .textSelection(.enabled)
-                .fixedSize(horizontal: true, vertical: false)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
+        Text(code)
+            .font(.system(.body, design: .monospaced))
+            .textSelection(.enabled)
+            .lineLimit(nil)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, -10)
         .padding(.bottom, 2)
