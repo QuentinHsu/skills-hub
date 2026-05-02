@@ -24,12 +24,6 @@ private struct SkillDetailContent: View {
     let lm: LocalizationManager
     @State private var isRenderingMarkdown = true
 
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd HH:mm"
-        return f
-    }()
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -95,7 +89,7 @@ private struct SkillDetailContent: View {
                 HStack(spacing: 12) {
                     MetadataText(
                         label: L.string("ui.skill.modified_label", using: lm),
-                        value: Self.dateFormatter.string(from: skill.modifiedAt)
+                        value: skill.modifiedAt.appTimestampString
                     )
                     if skill.sourceURL != nil, let sourceWebURL {
                         MetadataLink(

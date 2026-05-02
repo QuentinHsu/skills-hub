@@ -3,10 +3,12 @@
 "ui.action.delete_count" = "删除 (%lld)";
 "ui.action.done" = "完成";
 "ui.action.edit" = "编辑";
+"ui.action.remove" = "移除";
 "ui.action.add_skill" = "添加技能";
 "ui.label.agents" = "智能体";
 "ui.action.sync" = "同步";
 "ui.action.update" = "更新";
+"ui.action.update_all" = "全部更新";
 "ui.action.copy_to_project" = "复制到项目";
 "ui.hint.copy_to_project" = "将此技能复制到项目目录";
 "alert.delete.title" = "删除 %lld 个技能？";
@@ -81,6 +83,7 @@
 "ui.action.add" = "添加";
 "ui.action.reset" = "重置";
 "ui.action.apply" = "应用";
+"ui.action.refresh" = "刷新";
 "ui.app.check_for_updates" = "检查更新...";
 "ui.agent.add_custom" = "添加自定义智能体";
 
@@ -93,6 +96,15 @@
 "ui.settings.config_path" = "配置路径";
 "ui.settings.skills_path" = "技能文件夹";
 "ui.settings.config_path_footer" = "技能会存储在所选配置路径下的 skills 文件夹中。";
+"ui.settings.repositories" = "仓库";
+"ui.settings.repositories_count" = "%lld 个技能仓库";
+"ui.settings.repositories_hint" = "刷新远端数据后，可查看哪些技能已导入，哪些仍未导入。";
+"ui.settings.repositories_empty" = "暂无 Git 仓库";
+"ui.settings.repositories_empty_hint" = "先通过 Git URL 导入技能，仓库会显示在这里。";
+"ui.settings.repository_imported" = "已导入 (%lld)";
+"ui.settings.repository_unimported" = "未导入 (%lld)";
+"ui.settings.repository_refresh_to_discover" = "刷新此仓库以发现可用技能。";
+"ui.settings.repository_none_unimported" = "此仓库已发现的技能均已导入。";
 "ui.settings.about" = "关于";
 "ui.settings.about_subtitle" = "集中管理本地与 Git 仓库中的 AI 技能，并按智能体同步到对应目录，让 Codex、Claude、Cursor、Copilot 和自定义智能体复用同一套能力。";
 "ui.settings.version" = "版本";

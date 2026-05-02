@@ -286,6 +286,7 @@ struct GitService: Sendable {
     /// A skill discovered from a remote repo, parsed but not yet imported.
     struct DiscoveredSkill: Sendable, Identifiable {
         let id: String
+        let directoryName: String
         let name: String
         let description: String
         let metadataInternal: Bool
@@ -323,6 +324,7 @@ struct GitService: Sendable {
 
             discovered.append(DiscoveredSkill(
                 id: staged.directory.path(),
+                directoryName: staged.directory.lastPathComponent,
                 name: frontmatter.name,
                 description: frontmatter.description,
                 metadataInternal: frontmatter.metadataInternal,

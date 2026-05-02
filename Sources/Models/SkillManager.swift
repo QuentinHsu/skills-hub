@@ -16,6 +16,9 @@ final class SkillManager {
     var progressItemName: String?
     var progressMessageKey: String?
     var skillsRevision: Int = 0
+    var skillRepositories: [SkillRepositorySummary] = []
+    var updatingRepositoryURLs: Set<String> = []
+    private var knownSkillRepositoryURLs: Set<String> = []
 
     /// Discovery state for selective import
     var discoveredSkills: [GitService.DiscoveredSkill] = []
@@ -74,6 +77,7 @@ final class SkillManager {
 
     func scan() {
         skills = skillService.scan()
+        rebuildSkillRepositories()
         ensureAllSkillsLinkedToEnabledAgents()
         markSkillsChanged()
     }
@@ -84,7 +88,9 @@ final class SkillManager {
         let skill = try skillService.addSkill(from: dir)
         skills.append(skill)
         sortSkills()
+        rebuildSkillRepositories()
         ensureAllSkillsLinkedToEnabledAgents()
+        saveConfig()
         markSkillsChanged()
     }
 
@@ -100,6 +106,7 @@ final class SkillManager {
         }
 
         let info = try gitService.parseURL(gitURLString)
+        rememberSkillRepository(urlString: gitURLString)
         let stagedDirs = try await gitService.fetchSkillDirectories(from: info)
 
         var addedSkills: [Skill] = []
@@ -125,7 +132,9 @@ final class SkillManager {
             }
         }
         sortSkills()
+        rebuildSkillRepositories()
         ensureAllSkillsLinkedToEnabledAgents()
+        saveConfig()
         markSkillsChanged()
 
         return addedSkills
@@ -173,6 +182,7 @@ final class SkillManager {
 
         let toImport = discoveredSkills.filter { selectedIDs.contains($0.id) }
         var addedSkills: [Skill] = []
+        rememberSkillRepository(urlString: sourceGitURL)
 
         for discovered in toImport {
             do {
@@ -196,7 +206,9 @@ final class SkillManager {
             }
         }
         sortSkills()
+        rebuildSkillRepositories()
         ensureAllSkillsLinkedToEnabledAgents()
+        saveConfig()
         markSkillsChanged()
 
         return addedSkills
@@ -214,8 +226,13 @@ final class SkillManager {
     // MARK: - Remove Skill
 
     func removeSkill(_ skill: Skill) throws {
+        if let sourceURL = skill.sourceURL {
+            rememberSkillRepository(url: sourceURL)
+        }
         try skillService.removeSkill(skill)
         skills.removeAll { $0.id == skill.id }
+        rebuildSkillRepositories()
+        saveConfig()
         markSkillsChanged()
     }
 
@@ -265,6 +282,13 @@ final class SkillManager {
         }
 
         let sourceSkills = skills.filter { $0.sourceURL != nil }
+        rebuildSkillRepositories()
+        let sourceKeys = Set(sourceSkills.compactMap { $0.sourceURL?.absoluteString })
+        updatingRepositoryURLs.formUnion(sourceKeys)
+        defer {
+            updatingRepositoryURLs.subtract(sourceKeys)
+        }
+
         guard !sourceSkills.isEmpty else {
             statusMessageKey = "status.no_git_sources"
             return
@@ -318,6 +342,12 @@ final class SkillManager {
                         failedCount += 1
                     }
                 }
+
+                updateRepositorySnapshot(
+                    sourceURL: sourceURL,
+                    remoteSkills: repositoryRemoteSkills(from: result.skills),
+                    errorMessage: nil
+                )
             } catch {
                 for skill in groupedSkills.sorted(by: { $0.name < $1.name }) {
                     processedCount += 1
@@ -325,6 +355,11 @@ final class SkillManager {
                     progressItemName = skill.name
                     failedCount += 1
                 }
+                updateRepositorySnapshot(
+                    sourceURL: sourceURL,
+                    remoteSkills: nil,
+                    errorMessage: error.localizedDescription
+                )
             }
         }
 
@@ -332,17 +367,7 @@ final class SkillManager {
         ensureAllSkillsLinkedToEnabledAgents()
         scan()
 
-        if failedCount == 0 {
-            statusMessageKey = "status.update_complete"
-            statusMessageArg = Int64(updatedCount)
-        } else if updatedCount == 0 {
-            statusMessageKey = "status.update_failed"
-            statusMessageArg = Int64(failedCount)
-        } else {
-            statusMessageKey = "status.update_complete_with_failures"
-            statusMessageArg = Int64(updatedCount)
-            statusMessageArg2 = Int64(failedCount)
-        }
+        setUpdateStatus(updatedCount: updatedCount, failedCount: failedCount)
     }
 
     func syncAll() async {
@@ -366,6 +391,197 @@ final class SkillManager {
             }
         } catch {
             statusMessageKey = "status.sync_failed"
+        }
+    }
+
+    // MARK: - Skill Repositories
+
+    func refreshSkillRepositories() async {
+        rebuildSkillRepositories()
+        let sourceURLs = skillRepositories.map(\.sourceURL)
+
+        for sourceURL in sourceURLs {
+            await refreshSkillRepositoryMetadata(sourceURL: sourceURL)
+        }
+    }
+
+    func refreshSkillRepositoryMetadata(sourceURL: URL) async {
+        let sourceKey = sourceURL.absoluteString
+        updatingRepositoryURLs.insert(sourceKey)
+        defer { updatingRepositoryURLs.remove(sourceKey) }
+
+        do {
+            let info = try gitService.parseURL(sourceURL.absoluteString)
+            let result = try await gitService.discoverSkills(from: info)
+            defer {
+                try? FileManager.default.removeItem(at: result.stagingDirectory)
+            }
+
+            updateRepositorySnapshot(
+                sourceURL: sourceURL,
+                remoteSkills: repositoryRemoteSkills(from: result.skills),
+                errorMessage: nil
+            )
+        } catch {
+            updateRepositorySnapshot(
+                sourceURL: sourceURL,
+                remoteSkills: nil,
+                errorMessage: error.localizedDescription
+            )
+        }
+    }
+
+    func updateSkillRepository(sourceURL: URL) async {
+        let sourceKey = sourceURL.absoluteString
+        updatingRepositoryURLs.insert(sourceKey)
+        isLoading = true
+        statusMessageKey = "status.fetching_updates"
+        statusMessageArg = nil
+        statusMessageArg2 = nil
+        resetProgress()
+
+        defer {
+            updatingRepositoryURLs.remove(sourceKey)
+            isLoading = false
+            resetProgress()
+        }
+
+        let sourceSkills = skills
+            .filter { $0.sourceURL?.absoluteString == sourceKey }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+        guard !sourceSkills.isEmpty else {
+            statusMessageKey = "status.no_git_sources"
+            rebuildSkillRepositories()
+            return
+        }
+
+        progressTotal = Int64(sourceSkills.count)
+        progressMessageKey = "status.updating_skill"
+
+        do {
+            let info = try gitService.parseURL(sourceURL.absoluteString)
+            let result = try await gitService.discoverSkills(from: info)
+            defer {
+                try? FileManager.default.removeItem(at: result.stagingDirectory)
+            }
+
+            var updatedCount = 0
+            var failedCount = 0
+
+            for (index, skill) in sourceSkills.enumerated() {
+                progressCurrent = Int64(index + 1)
+                progressItemName = skill.name
+
+                guard let discovered = matchingDiscoveredSkill(for: skill, in: result.skills) else {
+                    failedCount += 1
+                    continue
+                }
+
+                do {
+                    let updatedSkill = try skillService.addSkill(
+                        from: discovered.stagedDirectory,
+                        sourceGitURL: sourceURL
+                    )
+                    if let idx = skills.firstIndex(where: { $0.directoryName == updatedSkill.directoryName }) {
+                        skills[idx] = updatedSkill
+                    } else {
+                        skills.append(updatedSkill)
+                    }
+                    updatedCount += 1
+                } catch {
+                    failedCount += 1
+                }
+            }
+
+            sortSkills()
+            ensureAllSkillsLinkedToEnabledAgents()
+            updateRepositorySnapshot(
+                sourceURL: sourceURL,
+                remoteSkills: repositoryRemoteSkills(from: result.skills),
+                errorMessage: failedCount == 0
+                    ? nil
+                    : String(format: LocalizationManager.localize("status.update_failed"), Int64(failedCount))
+            )
+            rebuildSkillRepositories()
+            markSkillsChanged()
+            setUpdateStatus(updatedCount: updatedCount, failedCount: failedCount)
+        } catch {
+            updateRepositorySnapshot(
+                sourceURL: sourceURL,
+                remoteSkills: nil,
+                errorMessage: error.localizedDescription
+            )
+            statusMessageKey = "status.update_failed"
+            statusMessageArg = Int64(sourceSkills.count)
+        }
+    }
+
+    @discardableResult
+    func importSkillFromRepository(
+        sourceURL: URL,
+        remoteSkill: SkillRepositoryRemoteSkill
+    ) async -> Skill? {
+        let sourceKey = sourceURL.absoluteString
+        updatingRepositoryURLs.insert(sourceKey)
+        isLoading = true
+        statusMessageKey = "status.importing_selected"
+        statusMessageArg = nil
+        statusMessageArg2 = nil
+        resetProgress()
+        rememberSkillRepository(url: sourceURL)
+
+        defer {
+            updatingRepositoryURLs.remove(sourceKey)
+            isLoading = false
+            resetProgress()
+        }
+
+        do {
+            let info = try gitService.parseURL(sourceURL.absoluteString)
+            let result = try await gitService.discoverSkills(from: info)
+            defer {
+                try? FileManager.default.removeItem(at: result.stagingDirectory)
+            }
+
+            guard let discovered = matchingDiscoveredSkill(for: remoteSkill, in: result.skills) else {
+                updateRepositorySnapshot(
+                    sourceURL: sourceURL,
+                    remoteSkills: repositoryRemoteSkills(from: result.skills),
+                    errorMessage: LocalizationManager.localize("error.no_valid_skills")
+                )
+                return nil
+            }
+
+            let skill = try skillService.addSkill(
+                from: discovered.stagedDirectory,
+                sourceGitURL: sourceURL
+            )
+
+            if let idx = skills.firstIndex(where: { $0.directoryName == skill.directoryName }) {
+                skills[idx] = skill
+            } else {
+                skills.append(skill)
+            }
+
+            sortSkills()
+            ensureAllSkillsLinkedToEnabledAgents()
+            updateRepositorySnapshot(
+                sourceURL: sourceURL,
+                remoteSkills: repositoryRemoteSkills(from: result.skills),
+                errorMessage: nil
+            )
+            rebuildSkillRepositories()
+            saveConfig()
+            markSkillsChanged()
+            return skill
+        } catch {
+            updateRepositorySnapshot(
+                sourceURL: sourceURL,
+                remoteSkills: nil,
+                errorMessage: error.localizedDescription
+            )
+            return nil
         }
     }
 
@@ -396,6 +612,7 @@ final class SkillManager {
     private func loadAgentsFromConfig() {
         let config = configService.load()
         agents.removeAll()
+        knownSkillRepositoryURLs = Set(config.skillRepositories.map(\.sourceURL))
 
         // Restore built-in agents
         for id in config.enabledBuiltIn {
@@ -429,8 +646,15 @@ final class SkillManager {
                 path: agent.skillsDirectory.path()
             )
         }
+        let skillRepositories = Array(knownSkillRepositoryURLs)
+            .sorted()
+            .map { SkillRepositoryEntry(sourceURL: $0) }
 
-        let config = AgentConfig(enabledBuiltIn: enabledBuiltIn, customAgents: customAgents)
+        let config = AgentConfig(
+            enabledBuiltIn: enabledBuiltIn,
+            customAgents: customAgents,
+            skillRepositories: skillRepositories
+        )
         try? configService.save(config)
     }
 
@@ -466,10 +690,110 @@ final class SkillManager {
         in discoveredSkills: [GitService.DiscoveredSkill]
     ) -> GitService.DiscoveredSkill? {
         discoveredSkills.first {
-            $0.stagedDirectory.lastPathComponent == skill.directoryName
+            $0.directoryName == skill.directoryName
         } ?? discoveredSkills.first {
             $0.name.caseInsensitiveCompare(skill.name) == .orderedSame
         } ?? (discoveredSkills.count == 1 ? discoveredSkills[0] : nil)
+    }
+
+    private func matchingDiscoveredSkill(
+        for remoteSkill: SkillRepositoryRemoteSkill,
+        in discoveredSkills: [GitService.DiscoveredSkill]
+    ) -> GitService.DiscoveredSkill? {
+        discoveredSkills.first {
+            $0.relativePath == remoteSkill.relativePath
+        } ?? discoveredSkills.first {
+            $0.directoryName == remoteSkill.directoryName
+        } ?? discoveredSkills.first {
+            $0.name.caseInsensitiveCompare(remoteSkill.name) == .orderedSame
+        }
+    }
+
+    private func rebuildSkillRepositories() {
+        let previousBySource = Dictionary(uniqueKeysWithValues: skillRepositories.map { ($0.id, $0) })
+        let sourceSkills = skills.filter { $0.sourceURL != nil }
+        let grouped = Dictionary(grouping: sourceSkills) { $0.sourceURL!.absoluteString }
+        knownSkillRepositoryURLs.formUnion(grouped.keys)
+
+        skillRepositories = knownSkillRepositoryURLs.sorted().compactMap { sourceKey in
+            let groupedSkills = grouped[sourceKey] ?? []
+            let sourceURL = groupedSkills.first?.sourceURL ?? URL(string: sourceKey)
+            guard let sourceURL else {
+                return nil
+            }
+
+            var summary = previousBySource[sourceKey] ?? SkillRepositorySummary(
+                sourceURL: sourceURL,
+                importedSkills: [],
+                remoteSkills: [],
+                lastFetchedAt: nil,
+                errorMessage: nil
+            )
+            summary.importedSkills = groupedSkills.sorted {
+                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            }
+            return summary
+        }
+    }
+
+    private func rememberSkillRepository(urlString: String) {
+        guard let url = URL(string: urlString) else { return }
+        rememberSkillRepository(url: url)
+    }
+
+    private func rememberSkillRepository(url: URL) {
+        knownSkillRepositoryURLs.insert(url.absoluteString)
+    }
+
+    private func updateRepositorySnapshot(
+        sourceURL: URL,
+        remoteSkills: [SkillRepositoryRemoteSkill]?,
+        errorMessage: String?
+    ) {
+        rebuildSkillRepositories()
+
+        let sourceKey = sourceURL.absoluteString
+        if let index = skillRepositories.firstIndex(where: { $0.id == sourceKey }) {
+            if let remoteSkills {
+                skillRepositories[index].remoteSkills = remoteSkills
+                skillRepositories[index].lastFetchedAt = Date()
+            }
+            skillRepositories[index].errorMessage = errorMessage
+        }
+    }
+
+    private func repositoryRemoteSkills(
+        from discoveredSkills: [GitService.DiscoveredSkill]
+    ) -> [SkillRepositoryRemoteSkill] {
+        discoveredSkills
+            .map { discovered in
+                SkillRepositoryRemoteSkill(
+                    id: discovered.relativePath,
+                    directoryName: discovered.directoryName,
+                    name: discovered.name,
+                    description: discovered.description,
+                    metadataInternal: discovered.metadataInternal,
+                    pluginName: discovered.pluginName,
+                    relativePath: discovered.relativePath
+                )
+            }
+            .sorted { lhs, rhs in
+                lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+    }
+
+    private func setUpdateStatus(updatedCount: Int, failedCount: Int) {
+        if failedCount == 0 {
+            statusMessageKey = "status.update_complete"
+            statusMessageArg = Int64(updatedCount)
+        } else if updatedCount == 0 {
+            statusMessageKey = "status.update_failed"
+            statusMessageArg = Int64(failedCount)
+        } else {
+            statusMessageKey = "status.update_complete_with_failures"
+            statusMessageArg = Int64(updatedCount)
+            statusMessageArg2 = Int64(failedCount)
+        }
     }
 
     private func resetProgress() {

@@ -47,6 +47,39 @@ struct Skill: Identifiable, Hashable, Sendable {
     }
 }
 
+struct SkillRepositoryRemoteSkill: Identifiable, Hashable, Sendable {
+    let id: String
+    let directoryName: String
+    let name: String
+    let description: String
+    let metadataInternal: Bool
+    let pluginName: String?
+    let relativePath: String
+}
+
+struct SkillRepositorySummary: Identifiable, Hashable, Sendable {
+    let sourceURL: URL
+    var importedSkills: [Skill]
+    var remoteSkills: [SkillRepositoryRemoteSkill]
+    var lastFetchedAt: Date?
+    var errorMessage: String?
+
+    var id: String { sourceURL.absoluteString }
+
+    var notImportedSkills: [SkillRepositoryRemoteSkill] {
+        remoteSkills.filter { remote in
+            !importedSkills.contains { imported in
+                imported.directoryName == remote.directoryName
+                    || imported.name.caseInsensitiveCompare(remote.name) == .orderedSame
+            }
+        }
+    }
+
+    var displayName: String {
+        sourceURL.absoluteString
+    }
+}
+
 // MARK: - SKILL.md Parsing
 
 struct SkillFrontmatter: Sendable {
@@ -80,8 +113,8 @@ struct SkillFrontmatter: Sendable {
             ? lines[bodyStart...].joined(separator: "\n")
             : ""
 
-        var name: String?
-        var description: String?
+        var name = Self.frontmatterValue(for: "name", in: frontmatterLines)
+        var description = Self.frontmatterValue(for: "description", in: frontmatterLines)
         var author: String?
         var version: String?
         var metadataInternal = false
@@ -102,9 +135,9 @@ struct SkillFrontmatter: Sendable {
             if !inMetadata || leadingSpaces <= metadataIndent {
                 inMetadata = false
 
-                if trimmed.hasPrefix("name:") {
+                if trimmed.hasPrefix("name:"), name == nil {
                     name = Self.stripQuotes(trimmed.dropFirst(5))
-                } else if trimmed.hasPrefix("description:") {
+                } else if trimmed.hasPrefix("description:"), description == nil {
                     description = Self.stripQuotes(trimmed.dropFirst(12))
                 } else if trimmed == "metadata:" || trimmed.hasPrefix("metadata:") {
                     let afterKey = trimmed.dropFirst(9).trimmingCharacters(in: .whitespaces)
@@ -152,6 +185,37 @@ struct SkillFrontmatter: Sendable {
     private static func stripQuotes(_ substring: Substring) -> String {
         substring.trimmingCharacters(in: .whitespaces)
             .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+    }
+
+    private static func frontmatterValue(for key: String, in lines: [String]) -> String? {
+        for (index, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let leadingSpaces = line.prefix(while: { $0 == " " || $0 == "\t" }).count
+            guard leadingSpaces == 0, trimmed.hasPrefix("\(key):") else { continue }
+
+            let rawValue = trimmed.dropFirst(key.count + 1).trimmingCharacters(in: .whitespaces)
+            if rawValue == ">" || rawValue == "|", index + 1 < lines.count {
+                let continuationLines = lines[(index + 1)...].prefix { nextLine in
+                    let nextTrimmed = nextLine.trimmingCharacters(in: .whitespaces)
+                    let nextIndent = nextLine.prefix(while: { $0 == " " || $0 == "\t" }).count
+                    return nextTrimmed.isEmpty || nextIndent > 0
+                }
+
+                let values = continuationLines
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+
+                if rawValue == "|" {
+                    return values.joined(separator: "\n")
+                }
+
+                return values.joined(separator: " ")
+            }
+
+            return rawValue.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+        }
+
+        return nil
     }
 
     private static func parseInlineMap(_ raw: String) -> [String: String] {

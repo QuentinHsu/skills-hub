@@ -3,10 +3,12 @@
 "ui.action.delete_count" = "Delete (%lld)";
 "ui.action.done" = "Done";
 "ui.action.edit" = "Edit";
+"ui.action.remove" = "Remove";
 "ui.action.add_skill" = "Add Skill";
 "ui.label.agents" = "Agents";
 "ui.action.sync" = "Sync";
 "ui.action.update" = "Update";
+"ui.action.update_all" = "Update All";
 "ui.action.copy_to_project" = "Copy to Project";
 "ui.hint.copy_to_project" = "Copy this skill to a project directory";
 "alert.delete.title" = "Delete %lld skill(s)?";
@@ -81,6 +83,7 @@
 "ui.action.add" = "Add";
 "ui.action.reset" = "Reset";
 "ui.action.apply" = "Apply";
+"ui.action.refresh" = "Refresh";
 "ui.app.check_for_updates" = "Check for Updates...";
 "ui.agent.add_custom" = "Add Custom Agent";
 
@@ -93,6 +96,15 @@
 "ui.settings.config_path" = "Config Path";
 "ui.settings.skills_path" = "Skills folder";
 "ui.settings.config_path_footer" = "Skills are stored under the selected config path in a skills folder.";
+"ui.settings.repositories" = "Repositories";
+"ui.settings.repositories_count" = "%lld skills repository(s)";
+"ui.settings.repositories_hint" = "Refresh remote data to see which skills are imported and which are still available.";
+"ui.settings.repositories_empty" = "No Git repositories";
+"ui.settings.repositories_empty_hint" = "Import skills from a Git URL first, then repositories will appear here.";
+"ui.settings.repository_imported" = "Imported (%lld)";
+"ui.settings.repository_unimported" = "Not Imported (%lld)";
+"ui.settings.repository_refresh_to_discover" = "Refresh this repository to discover available skills.";
+"ui.settings.repository_none_unimported" = "All discovered skills from this repository are imported.";
 "ui.settings.about" = "About";
 "ui.settings.about_subtitle" = "Collect AI skills from local folders and Git repositories, then sync them into each agent's skills directory so Codex, Claude, Cursor, Copilot, and custom agents can share the same capabilities.";
 "ui.settings.version" = "Version";

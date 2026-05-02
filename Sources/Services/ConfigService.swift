@@ -3,12 +3,40 @@ import Foundation
 struct AgentConfig: Codable, Sendable {
     var enabledBuiltIn: [String]       // rawValue of BuiltInAgent
     var customAgents: [CustomAgentEntry]
+    var skillRepositories: [SkillRepositoryEntry]
+
+    init(
+        enabledBuiltIn: [String],
+        customAgents: [CustomAgentEntry],
+        skillRepositories: [SkillRepositoryEntry] = []
+    ) {
+        self.enabledBuiltIn = enabledBuiltIn
+        self.customAgents = customAgents
+        self.skillRepositories = skillRepositories
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case enabledBuiltIn
+        case customAgents
+        case skillRepositories
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabledBuiltIn = try container.decodeIfPresent([String].self, forKey: .enabledBuiltIn) ?? []
+        customAgents = try container.decodeIfPresent([CustomAgentEntry].self, forKey: .customAgents) ?? []
+        skillRepositories = try container.decodeIfPresent([SkillRepositoryEntry].self, forKey: .skillRepositories) ?? []
+    }
 }
 
 struct CustomAgentEntry: Codable, Sendable {
     let name: String
     let displayName: String
     let path: String
+}
+
+struct SkillRepositoryEntry: Codable, Sendable {
+    let sourceURL: String
 }
 
 struct ConfigService: Sendable {

@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
     @State private var configPath = ""
     @State private var showingAddCustomAgent = false
+    @State private var didRequestInitialRepositoryRefresh = false
 
     private var currentSection: SettingsSection {
         selectedSection ?? .general
@@ -55,6 +56,8 @@ struct SettingsView: View {
         case .agents:
             AgentManagementList(manager: manager, showingAddCustom: $showingAddCustomAgent)
                 .listStyle(.inset)
+        case .repositories:
+            repositorySettings
         case .about:
             aboutSettings
         }
@@ -145,6 +148,221 @@ struct SettingsView: View {
             }
         }
         .listStyle(.inset)
+    }
+
+    private var repositorySettings: some View {
+        List {
+            Section {
+                if manager.skillRepositories.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label(L.string("ui.settings.repositories_empty", using: lm), systemImage: "tray")
+                            .font(.subheadline.weight(.medium))
+                        L.text("ui.settings.repositories_empty_hint", using: lm)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 6)
+                } else {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            L.text("ui.settings.repositories_count", Int64(manager.skillRepositories.count), using: lm)
+                                .font(.subheadline.weight(.medium))
+                            L.text("ui.settings.repositories_hint", using: lm)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        Button {
+                            Task { await manager.refreshSkillRepositories() }
+                        } label: {
+                            Label(L.string("ui.action.refresh", using: lm), systemImage: "arrow.clockwise")
+                        }
+                        .disabled(!manager.updatingRepositoryURLs.isEmpty)
+
+                        Button {
+                            Task { await manager.updateAllFromSources() }
+                        } label: {
+                            Label(L.string("ui.action.update_all", using: lm), systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .disabled(!manager.updatingRepositoryURLs.isEmpty || manager.isLoading)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+
+            ForEach(manager.skillRepositories) { repository in
+                Section {
+                    repositoryHeader(repository)
+
+                    repositoryImportedGroup(repository)
+
+                    repositoryRemoteGroup(repository)
+                }
+            }
+        }
+        .listStyle(.inset)
+        .task {
+            guard !didRequestInitialRepositoryRefresh else { return }
+            didRequestInitialRepositoryRefresh = true
+            manager.scan()
+            if !manager.skillRepositories.isEmpty {
+                await manager.refreshSkillRepositories()
+            }
+        }
+    }
+
+    private func repositoryHeader(_ repository: SkillRepositorySummary) -> some View {
+        let isUpdating = manager.updatingRepositoryURLs.contains(repository.id)
+
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(repositoryTitle(repository))
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                }
+
+                Spacer(minLength: 12)
+
+                if isUpdating {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+
+                if let lastFetchedAt = repository.lastFetchedAt {
+                    Text(lastFetchedAt.appTimestampString)
+                        .font(.caption)
+                        .fontDesign(.monospaced)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button {
+                    Task { await manager.updateSkillRepository(sourceURL: repository.sourceURL) }
+                } label: {
+                    Label(L.string("ui.action.update", using: lm), systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(isUpdating || repository.importedSkills.isEmpty)
+            }
+
+            if let errorMessage = repository.errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func repositoryImportedGroup(_ repository: SkillRepositorySummary) -> some View {
+        DisclosureGroup {
+            ForEach(repository.importedSkills) { skill in
+                HStack(alignment: .center, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(skill.name)
+                            .font(.subheadline)
+                        Text(skill.description)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                        Text(skill.directoryName)
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    Spacer(minLength: 10)
+
+                    Button {
+                        try? manager.removeSkill(skill)
+                    } label: {
+                        Label(L.string("ui.action.remove", using: lm), systemImage: "minus.circle")
+                    }
+                    .labelStyle(.iconOnly)
+                    .help(L.string("ui.action.remove", using: lm))
+                }
+                .padding(.vertical, 2)
+            }
+        } label: {
+            Text(
+                L.string(
+                    "ui.settings.repository_imported",
+                    Int64(repository.importedSkills.count),
+                    using: lm
+                )
+            )
+            .font(.subheadline.weight(.medium))
+        }
+    }
+
+    private func repositoryRemoteGroup(_ repository: SkillRepositorySummary) -> some View {
+        DisclosureGroup {
+            if repository.lastFetchedAt == nil && repository.errorMessage == nil {
+                L.text("ui.settings.repository_refresh_to_discover", using: lm)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 2)
+            } else if repository.notImportedSkills.isEmpty {
+                L.text("ui.settings.repository_none_unimported", using: lm)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 2)
+            } else {
+                ForEach(repository.notImportedSkills) { skill in
+                    HStack(alignment: .center, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 6) {
+                                Text(skill.name)
+                                    .font(.subheadline)
+                                if skill.metadataInternal {
+                                    Text(L.string("ui.badge.internal", using: lm))
+                                        .font(.caption2.weight(.semibold))
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 1)
+                                        .background(.orange.opacity(0.16), in: Capsule())
+                                        .foregroundStyle(.orange)
+                                }
+                            }
+
+                            Text(skill.description)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+
+                            Text(skill.relativePath)
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(.tertiary)
+                        }
+
+                        Spacer(minLength: 10)
+
+                        Button {
+                            Task {
+                                await manager.importSkillFromRepository(
+                                    sourceURL: repository.sourceURL,
+                                    remoteSkill: skill
+                                )
+                            }
+                        } label: {
+                            Label(L.string("ui.action.add", using: lm), systemImage: "plus.circle")
+                        }
+                        .labelStyle(.iconOnly)
+                        .help(L.string("ui.action.add", using: lm))
+                        .disabled(manager.updatingRepositoryURLs.contains(repository.id))
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        } label: {
+            Text(
+                L.string(
+                    "ui.settings.repository_unimported",
+                    Int64(repository.notImportedSkills.count),
+                    using: lm
+                )
+            )
+            .font(.subheadline.weight(.medium))
+        }
     }
 
     private var aboutSettings: some View {
@@ -248,6 +466,7 @@ struct SettingsView: View {
 private enum SettingsSection: String, CaseIterable, Identifiable {
     case general
     case agents
+    case repositories
     case about
 
     var id: Self { self }
@@ -259,6 +478,8 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
             L.string("ui.settings.general", using: lm)
         case .agents:
             L.string("ui.label.agents", using: lm)
+        case .repositories:
+            L.string("ui.settings.repositories", using: lm)
         case .about:
             L.string("ui.settings.about", using: lm)
         }
@@ -270,10 +491,25 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
             "gearshape"
         case .agents:
             "person.2"
+        case .repositories:
+            "tray.full"
         case .about:
             "info.circle"
         }
     }
+}
+
+private extension SettingsView {
+    func repositoryTitle(_ repository: SkillRepositorySummary) -> String {
+        if let info = try? manager.gitService.parseURL(repository.sourceURL.absoluteString) {
+            return "\(info.owner)/\(info.repo)"
+        }
+
+        return repository.sourceURL.lastPathComponent.isEmpty
+            ? repository.sourceURL.absoluteString
+            : repository.sourceURL.lastPathComponent
+    }
+
 }
 
 private enum AppInfo {
