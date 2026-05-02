@@ -110,6 +110,7 @@ private struct BuiltInAgentRow: View {
 
             Toggle("", isOn: $isEnabled)
                 .toggleStyle(.switch)
+                .controlSize(.small)
                 .labelsHidden()
         }
         .padding(.vertical, 4)
