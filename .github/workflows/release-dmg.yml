@@ -21,6 +21,16 @@ on:
           - patch
           - minor
           - major
+      macos_runner:
+        description: "macOS runner label for the build job."
+        required: false
+        default: macos-26
+        type: string
+      xcode_version:
+        description: "Xcode version selected by setup-xcode."
+        required: false
+        default: "26.4.1"
+        type: string
 
 jobs:
   release:
@@ -33,6 +43,8 @@ jobs:
       app_bundle_id: com.skillshub.app
       app_min_macos: "15.0"
       app_icon_path: Assets/AppIcon.icns
+      macos_runner: ${{ github.event_name == 'workflow_dispatch' && inputs.macos_runner || vars.MACOS_RUNNER || 'macos-26' }}
+      xcode_version: ${{ github.event_name == 'workflow_dispatch' && inputs.xcode_version || vars.XCODE_VERSION || '26.4.1' }}
       release_kit_repository: QuentinHsu/workflow
       release_kit_ref: main
       release_kit_path: release-kits/macos/swiftpm-sparkle
