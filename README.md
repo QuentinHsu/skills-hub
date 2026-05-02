@@ -4,6 +4,19 @@ English | [简体中文](README.zh-CN.md)
 
 <img src="Docs/static/logo.png" width="220" alt="Skills Hub logo" style="border-radius: 48px;" />
 
+<p>
+  <img alt="Platform" src="https://img.shields.io/badge/macOS-15%2B-111111?style=flat&logo=apple" />
+  <img alt="Swift" src="https://img.shields.io/badge/Swift-6.3-F05138?style=flat&logo=swift" />
+  <img alt="Build" src="https://img.shields.io/badge/Build-SwiftPM-0A84FF?style=flat" />
+  <img alt="i18n" src="https://img.shields.io/badge/i18n-zh--Hans%20%7C%20en-34C759?style=flat" />
+  <a href="https://github.com/QuentinHsu/skills-hub/releases" target="_blank" rel="noopener noreferrer">
+    <img alt="Version" src="https://img.shields.io/github/v/release/QuentinHsu/skills-hub?style=flat&logo=github" />
+  </a>
+  <a href="https://github.com/QuentinHsu/skills-hub/releases" target="_blank" rel="noopener noreferrer">
+    <img alt="Downloads" src="https://img.shields.io/github/downloads/QuentinHsu/skills-hub/total?style=flat&logo=dropbox&logoColor=white&color=green" />
+  </a>
+</p>
+
 # Skills Hub
 
 A native macOS app for collecting, previewing, updating, and sharing AI agent skills across Codex, Claude Code, Cursor, GitHub Copilot, and custom agents.
