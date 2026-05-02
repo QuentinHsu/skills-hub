@@ -29,6 +29,8 @@
     <true/>
     <key>SUEnableInstallerLauncherService</key>
     <true/>
+    <key>SUShowReleaseNotes</key>
+    <false/>
     <key>SUFeedURL</key>
     <string>https://github.com/QuentinHsu/skills-hub/releases/latest/download/appcast.xml</string>
 </dict>
