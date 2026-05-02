@@ -36,9 +36,14 @@ jobs:
       release_kit_repository: QuentinHsu/workflow
       release_kit_ref: main
       release_kit_path: release-kits/macos/swiftpm-sparkle
+      changelog_path: CHANGELOG.md
+      changelog_language: zh-CN
+      changelog_summary_setup_command: if [[ -n "${COPILOT_GITHUB_TOKEN:-}" ]]; then npm install -g @github/copilot; fi
+      changelog_summary_command: if command -v copilot >/dev/null 2>&1; then copilot -p "$(cat {prompt_file})"; fi
       sparkle_public_ed_key: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
       tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || '' }}
       bump: ${{ github.event_name == 'workflow_dispatch' && inputs.bump || 'auto' }}
       architectures: '["arm64","x86_64"]'
     secrets:
       sparkle_private_ed_key: ${{ secrets.SPARKLE_PRIVATE_ED_KEY }}
+      changelog_summary_token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
