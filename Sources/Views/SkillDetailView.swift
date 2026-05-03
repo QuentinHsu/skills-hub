@@ -84,7 +84,6 @@ private struct SkillDetailContent: View {
                     }
                     MetadataText(label: L.string("ui.skill.directory", using: lm), value: skill.directoryName)
                 }
-                .foregroundStyle(.secondary)
 
                 HStack(spacing: 12) {
                     MetadataText(
@@ -114,9 +113,9 @@ private struct SkillDetailContent: View {
                         )
                     }
                 }
-                .foregroundStyle(.tertiary)
             }
             .font(.caption)
+            .foregroundStyle(.secondary)
         }
     }
 
@@ -236,7 +235,6 @@ private struct MetadataLink: View {
                     .truncationMode(.middle)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.blue)
         }
         .lineLimit(1)
     }
