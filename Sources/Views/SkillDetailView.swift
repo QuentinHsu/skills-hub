@@ -91,6 +91,14 @@ private struct SkillDetailContent: View {
                         label: L.string("ui.skill.modified_label", using: lm),
                         value: skill.modifiedAt.appTimestampString
                     )
+                    MetadataText(
+                        label: L.string("ui.skill.token_estimate", using: lm),
+                        value: L.string(
+                            "ui.skill.approx_token_count",
+                            skill.estimatedTokenCount.localizedDecimalString(using: lm),
+                            using: lm
+                        )
+                    )
                     if skill.sourceURL != nil, let sourceWebURL {
                         MetadataLink(
                             label: L.string("ui.skill.source", using: lm),
@@ -231,6 +239,16 @@ private struct MetadataLink: View {
             .foregroundStyle(.blue)
         }
         .lineLimit(1)
+    }
+}
+
+private extension Int {
+    @MainActor
+    func localizedDecimalString(using lm: LocalizationManager) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = Locale(identifier: lm.currentLanguage == .zhHans ? "zh_Hans" : "en")
+        return formatter.string(from: NSNumber(value: self)) ?? "\(self)"
     }
 }
 

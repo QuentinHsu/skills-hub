@@ -39,6 +39,8 @@
 "ui.skill.version" = "版本";
 "ui.skill.directory" = "目录";
 "ui.skill.modified_label" = "修改于";
+"ui.skill.token_estimate" = "Token 估算";
+"ui.skill.approx_token_count" = "约 %@ tokens";
 "ui.skill.source" = "来源";
 "ui.skill.rules_count" = "规则 (%lld)";
 "ui.skill.open_in_finder" = "在 Finder 中打开";

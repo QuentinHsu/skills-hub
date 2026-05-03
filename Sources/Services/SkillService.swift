@@ -59,6 +59,12 @@ struct SkillService: Sendable {
                 .sorted()
         }
 
+        let estimatedTokenCount = estimateTokenCount(
+            rawSkillContent: rawContent,
+            directory: directory,
+            ruleFiles: ruleFiles
+        )
+
         // Read persisted source URL
         let sourceURL: URL? = readSourceURL(from: directory)
 
@@ -73,6 +79,7 @@ struct SkillService: Sendable {
             pluginName: frontmatter.pluginName,
             content: frontmatter.bodyContent,
             ruleFiles: ruleFiles,
+            estimatedTokenCount: estimatedTokenCount,
             sourceURL: sourceURL,
             createdAt: resourceValues?.creationDate ?? .distantPast,
             modifiedAt: resourceValues?.contentModificationDate ?? .distantPast
@@ -131,7 +138,7 @@ struct SkillService: Sendable {
                 directoryURL: destination,
                 name: "", description: "", author: nil, version: nil,
                 metadataInternal: false, pluginName: nil,
-                content: "", ruleFiles: [], sourceURL: nil,
+                content: "", ruleFiles: [], estimatedTokenCount: 0, sourceURL: nil,
                 createdAt: .distantPast, modifiedAt: .distantPast
             ))
 
@@ -308,6 +315,20 @@ struct SkillService: Sendable {
     private func itemOrSymlinkExists(at url: URL) -> Bool {
         FileManager.default.fileExists(atPath: url.path())
             || (try? FileManager.default.destinationOfSymbolicLink(atPath: url.path())) != nil
+    }
+
+    // MARK: - Token Estimate
+
+    private func estimateTokenCount(rawSkillContent: String, directory: URL, ruleFiles: [String]) -> Int {
+        var text = rawSkillContent
+
+        for rulePath in ruleFiles {
+            let ruleURL = directory.appendingPathComponent(rulePath)
+            guard let ruleContent = try? String(contentsOf: ruleURL, encoding: .utf8) else { continue }
+            text += "\n\n\(rulePath)\n\(ruleContent)"
+        }
+
+        return SkillTokenEstimator.estimate(text)
     }
 
     // MARK: - Search

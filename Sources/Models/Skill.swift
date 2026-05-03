@@ -27,6 +27,9 @@ struct Skill: Identifiable, Hashable, Sendable {
     /// Relative paths to rule files within the skill directory
     let ruleFiles: [String]
 
+    /// Approximate tokens consumed when loading SKILL.md and companion rule files.
+    let estimatedTokenCount: Int
+
     /// Source git URL (if imported from remote)
     let sourceURL: URL?
 
@@ -77,6 +80,55 @@ struct SkillRepositorySummary: Identifiable, Hashable, Sendable {
 
     var displayName: String {
         sourceURL.absoluteString
+    }
+}
+
+enum SkillTokenEstimator {
+    static func estimate(_ text: String) -> Int {
+        var tokens = 0
+        var runLength = 0
+
+        func flushRun() {
+            guard runLength > 0 else { return }
+            tokens += max(1, Int(ceil(Double(runLength) / 4.0)))
+            runLength = 0
+        }
+
+        for scalar in text.unicodeScalars {
+            if CharacterSet.whitespacesAndNewlines.contains(scalar) {
+                flushRun()
+            } else if scalar.isCJK {
+                flushRun()
+                tokens += 1
+            } else if CharacterSet.punctuationCharacters.contains(scalar) || CharacterSet.symbols.contains(scalar) {
+                flushRun()
+                tokens += 1
+            } else {
+                runLength += 1
+            }
+        }
+
+        flushRun()
+        return tokens
+    }
+}
+
+private extension Unicode.Scalar {
+    var isCJK: Bool {
+        switch value {
+        case 0x3400...0x4DBF,
+             0x4E00...0x9FFF,
+             0xF900...0xFAFF,
+             0x20000...0x2A6DF,
+             0x2A700...0x2B73F,
+             0x2B740...0x2B81F,
+             0x2B820...0x2CEAF,
+             0x3040...0x30FF,
+             0xAC00...0xD7AF:
+            true
+        default:
+            false
+        }
     }
 }
 

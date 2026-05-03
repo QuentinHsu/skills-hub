@@ -39,6 +39,8 @@
 "ui.skill.version" = "Version";
 "ui.skill.directory" = "Directory";
 "ui.skill.modified_label" = "Modified";
+"ui.skill.token_estimate" = "Token estimate";
+"ui.skill.approx_token_count" = "≈ %@ tokens";
 "ui.skill.source" = "Source";
 "ui.skill.rules_count" = "Rules (%lld)";
 "ui.skill.open_in_finder" = "Open in Finder";
