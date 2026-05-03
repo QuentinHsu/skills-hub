@@ -12,6 +12,8 @@ struct SettingsView: View {
     @State private var configPath = ""
     @State private var showingAddCustomAgent = false
     @State private var didRequestInitialRepositoryRefresh = false
+    @State private var expandedImportedRepositoryIDs: Set<String> = []
+    @State private var expandedRemoteRepositoryIDs: Set<String> = []
 
     private var currentSection: SettingsSection {
         selectedSection ?? .general
@@ -259,7 +261,12 @@ struct SettingsView: View {
     }
 
     private func repositoryImportedGroup(_ repository: SkillRepositorySummary) -> some View {
-        DisclosureGroup {
+        let isExpanded = repositoryGroupExpandedBinding(
+            repositoryID: repository.id,
+            group: .imported
+        )
+
+        return DisclosureGroup(isExpanded: isExpanded) {
             ForEach(repository.importedSkills) { skill in
                 HStack(alignment: .center, spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -287,21 +294,26 @@ struct SettingsView: View {
                 .padding(.vertical, 2)
             }
         } label: {
-            Text(
+            repositoryDisclosureLabel(
                 L.string(
                     "ui.settings.repository_imported",
                     Int64(repository.importedSkills.count),
                     using: lm
-                )
+                ),
+                isExpanded: isExpanded
             )
-            .font(.subheadline.weight(.medium))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
     }
 
     private func repositoryRemoteGroup(_ repository: SkillRepositorySummary) -> some View {
-        DisclosureGroup {
+        let isExpanded = repositoryGroupExpandedBinding(
+            repositoryID: repository.id,
+            group: .remote
+        )
+
+        return DisclosureGroup(isExpanded: isExpanded) {
             if repository.lastFetchedAt == nil && repository.errorMessage == nil {
                 L.text("ui.settings.repository_refresh_to_discover", using: lm)
                     .font(.caption)
@@ -359,17 +371,68 @@ struct SettingsView: View {
                 }
             }
         } label: {
-            Text(
+            repositoryDisclosureLabel(
                 L.string(
                     "ui.settings.repository_unimported",
                     Int64(repository.notImportedSkills.count),
                     using: lm
-                )
+                ),
+                isExpanded: isExpanded
             )
-            .font(.subheadline.weight(.medium))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+    }
+
+    private enum RepositorySkillGroup {
+        case imported
+        case remote
+    }
+
+    private func repositoryGroupExpandedBinding(
+        repositoryID: String,
+        group: RepositorySkillGroup
+    ) -> Binding<Bool> {
+        Binding {
+            switch group {
+            case .imported:
+                expandedImportedRepositoryIDs.contains(repositoryID)
+            case .remote:
+                expandedRemoteRepositoryIDs.contains(repositoryID)
+            }
+        } set: { isExpanded in
+            switch group {
+            case .imported:
+                if isExpanded {
+                    expandedImportedRepositoryIDs.insert(repositoryID)
+                } else {
+                    expandedImportedRepositoryIDs.remove(repositoryID)
+                }
+            case .remote:
+                if isExpanded {
+                    expandedRemoteRepositoryIDs.insert(repositoryID)
+                } else {
+                    expandedRemoteRepositoryIDs.remove(repositoryID)
+                }
+            }
+        }
+    }
+
+    private func repositoryDisclosureLabel(
+        _ title: String,
+        isExpanded: Binding<Bool>
+    ) -> some View {
+        HStack {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isExpanded.wrappedValue.toggle()
+        }
     }
 
     private var aboutSettings: some View {
