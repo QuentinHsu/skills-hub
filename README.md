@@ -9,12 +9,8 @@ English | [简体中文](README.zh-CN.md)
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6.3-F05138?style=flat&logo=swift" />
   <img alt="Build" src="https://img.shields.io/badge/Build-SwiftPM-0A84FF?style=flat" />
   <img alt="i18n" src="https://img.shields.io/badge/i18n-zh--Hans%20%7C%20en-34C759?style=flat" />
-  <a href="https://github.com/QuentinHsu/skills-hub/releases" target="_blank" rel="noopener noreferrer">
-    <img alt="Version" src="https://img.shields.io/github/v/release/QuentinHsu/skills-hub?style=flat&logo=github" />
-  </a>
-  <a href="https://github.com/QuentinHsu/skills-hub/releases" target="_blank" rel="noopener noreferrer">
-    <img alt="Downloads" src="https://img.shields.io/github/downloads/QuentinHsu/skills-hub/total?style=flat&logo=dropbox&logoColor=white&color=green" />
-  </a>
+  <img alt="Version" src="https://img.shields.io/github/v/release/QuentinHsu/skills-hub?style=flat&logo=github" />
+  <img alt="Downloads" src="https://img.shields.io/github/downloads/QuentinHsu/skills-hub/total?style=flat&logo=dropbox&logoColor=white&color=green" />
 </p>
 
 # Skills Hub
@@ -30,6 +26,8 @@ A native macOS app for collecting, previewing, updating, and sharing AI agent sk
 - macOS 15 or later
 - Git, if you want to import or update skills from remote repositories
 
+The app supports automatic updates via Sparkle. You can also check for updates manually from `Settings` -> `About`.
+
 ## Quick Start
 
 1. Open Skills Hub.
@@ -37,6 +35,7 @@ A native macOS app for collecting, previewing, updating, and sharing AI agent sk
 3. Import a local skill folder or discover skills from a Git repository.
 4. Enable the agents you use in `Settings` -> `Agents`.
 5. Click `Sync` to link your skills into the enabled agent skill folders.
+6. Manage imported repositories and update skills from `Settings` -> `Repositories`.
 
 ## Import Skills
 
@@ -86,13 +85,24 @@ When an agent is enabled, Skills Hub links imported skills into that agent's fol
 ## Manage Skills
 
 - Search skills from the sidebar.
-- Select a skill to preview its rendered `SKILL.md`.
-- Switch to source view when you want to inspect the raw Markdown.
+- Select a skill to preview its rendered `SKILL.md` with rich Markdown rendering.
+- Toggle between rendered and source view using the floating button in the bottom-right corner.
+- View skill metadata including author, version, token estimate, modification time, and source repository link.
+- View and open associated rule files directly from the skill detail view.
 - Click `Copy SKILL.md` to copy the skill prompt content.
 - Click `Copy to Project` to export a skill into another project folder.
 - Click `Reveal in Finder` to open the skill folder.
 - Use `Update` to refresh skills that were imported from Git repositories.
 - Use `Edit` to select and delete multiple skills.
+
+## Manage Repositories
+
+Open `Settings` -> `Repositories` to manage your imported skill sources:
+
+- View all repositories you have imported skills from.
+- See imported and available (not yet imported) skills per repository.
+- Update individual repositories or refresh all at once.
+- Import new skills or remove existing ones from each repository.
 
 ## Skill Folder Format
 
