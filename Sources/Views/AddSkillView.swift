@@ -21,40 +21,25 @@ struct AddSkillView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Title bar
-            HStack {
-                L.text("ui.add_skill.title", using: lm)
-                    .font(.headline)
-                Spacer()
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
+        NavigationStack {
+            SettingsPage {
+                Picker("", selection: $selectedTab) {
+                    Text(L.string("ui.add_skill.local_tab", using: lm)).tag(Tab.local)
+                    Text(L.string("ui.add_skill.git_tab", using: lm)).tag(Tab.git)
                 }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 10)
+                .pickerStyle(.segmented)
 
-            // Segmented picker
-            Picker("", selection: $selectedTab) {
-                Text(L.string("ui.add_skill.local_tab", using: lm)).tag(Tab.local)
-                Text(L.string("ui.add_skill.git_tab", using: lm)).tag(Tab.git)
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 10)
-
-            Divider()
-
-            // Scrollable content
-            ScrollView {
                 switch selectedTab {
                 case .local:
                     localTab
                 case .git:
                     gitTab
+                }
+            }
+            .navigationTitle(L.string("ui.add_skill.title", using: lm))
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L.string("ui.action.cancel", using: lm)) { dismiss() }
                 }
             }
         }
@@ -67,169 +52,157 @@ struct AddSkillView: View {
     // MARK: - Local Tab
 
     private var localTab: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "folder.badge.plus")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 2) {
-                    L.text("ui.add_skill.import_dir_title", using: lm)
-                        .font(.headline)
-                    L.text("ui.add_skill.import_dir_hint", using: lm)
-                        .font(.caption)
+        SettingsCard {
+            SettingsRow {
+                HStack(spacing: 10) {
+                    Image(systemName: "folder.badge.plus")
+                        .font(.system(size: 24))
                         .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        L.text("ui.add_skill.import_dir_title", using: lm)
+                            .font(.subheadline.weight(.semibold))
+                        L.text("ui.add_skill.import_dir_hint", using: lm)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-            }
-            .padding(.top, 12)
-
-            Button(L.string("ui.action.choose_directory", using: lm)) {
-                showingFolderPicker = true
-            }
-            .buttonStyle(.borderedProminent)
-            .fileImporter(
-                isPresented: $showingFolderPicker,
-                allowedContentTypes: [.folder],
-                allowsMultipleSelection: false
-            ) { result in
-                if case .success(let urls) = result, let url = urls.first {
-                    do {
-                        try manager.addSkill(fromDirectory: url)
-                        dismiss()
-                    } catch {
-                        errorMessage = error.localizedDescription
+            } trailing: {
+                Button(L.string("ui.action.choose_directory", using: lm)) {
+                    showingFolderPicker = true
+                }
+                .buttonStyle(.borderedProminent)
+                .fileImporter(
+                    isPresented: $showingFolderPicker,
+                    allowedContentTypes: [.folder],
+                    allowsMultipleSelection: false
+                ) { result in
+                    if case .success(let urls) = result, let url = urls.first {
+                        do {
+                            try manager.addSkill(fromDirectory: url)
+                            dismiss()
+                        } catch {
+                            errorMessage = error.localizedDescription
+                        }
                     }
                 }
             }
 
             if let errorMessage {
+                SettingsDivider()
+
                 Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.red)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 16)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Git Tab
 
     private var gitTab: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "arrow.down.doc")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 2) {
-                    L.text("ui.add_skill.import_git_title", using: lm)
-                        .font(.headline)
-                    L.text("ui.add_skill.import_git_hint", using: lm)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.top, 12)
-
-            VStack(alignment: .leading, spacing: 6) {
-                L.text("ui.add_skill.repository_url", using: lm)
-                    .font(.subheadline.weight(.medium))
-
-                HStack(spacing: 8) {
-                    TextField(
-                        "owner/repo or https://github.com/org/repo",
-                        text: $gitURL
-                    )
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
-
-                    Button(L.string("ui.action.discover", using: lm)) {
-                        discoverFromGit()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(gitURL.isEmpty || manager.isDiscovering)
-                }
-            }
-
-            if manager.isDiscovering {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .controlSize(.small)
-                    L.text("ui.add_skill.discovering", using: lm)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            if let errorMessage {
-                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
-
-            // Discovered skills selection
-            if !manager.discoveredSkills.isEmpty {
-                discoveredSkillsList
-            }
-
-            // Import result
-            if !importedSkills.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    L.text("ui.add_skill.imported_count", Int64(importedSkills.count), using: lm)
-                        .font(.caption.bold())
-                    ForEach(importedSkills) { skill in
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text(skill.name)
+        Group {
+            SettingsCard {
+                SettingsRow {
+                    HStack(spacing: 10) {
+                        Image(systemName: "arrow.down.doc")
+                            .font(.system(size: 24))
+                            .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            L.text("ui.add_skill.import_git_title", using: lm)
+                                .font(.subheadline.weight(.semibold))
+                            L.text("ui.add_skill.import_git_hint", using: lm)
                                 .font(.caption)
-                            if skill.version != nil {
-                                Text("v\(skill.version!)")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
-                .padding(10)
-                .background(.green.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+
+                SettingsDivider()
+
+                VStack(alignment: .leading, spacing: 6) {
+                    L.text("ui.add_skill.repository_url", using: lm)
+                        .font(.subheadline.weight(.medium))
+
+                    HStack(spacing: 8) {
+                        TextField(
+                            "owner/repo or https://github.com/org/repo",
+                            text: $gitURL
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(.body, design: .monospaced))
+
+                        Button(L.string("ui.action.discover", using: lm)) {
+                            discoverFromGit()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(gitURL.isEmpty || manager.isDiscovering)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+
+                if manager.isDiscovering {
+                    SettingsDivider()
+
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        L.text("ui.add_skill.discovering", using: lm)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                }
+
+                if let errorMessage {
+                    SettingsDivider()
+
+                    Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                }
             }
 
-            Divider()
-
-            VStack(alignment: .leading, spacing: 2) {
-                L.text("ui.add_skill.supported_formats", using: lm)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                Text("owner/repo")
-                Text("github.com/{owner}/{repo}")
-                Text("github.com/{owner}/{repo}/tree/{branch}/{path}")
-                Text("gitlab.com/{owner}/{repo}/-/tree/{branch}/{path}")
-                Text("bitbucket.org/{owner}/{repo}/src/{branch}/{path}")
-                Text("git@github.com:{owner}/{repo}.git")
+            if !manager.discoveredSkills.isEmpty {
+                discoveredSkillsCard
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .padding(.bottom, 16)
+
+            if !importedSkills.isEmpty {
+                importResultCard
+            }
+
+            supportedFormatsCard
         }
-        .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var discoveredSkillsList: some View {
-        VStack(alignment: .leading, spacing: 8) {
+    private var discoveredSkillsCard: some View {
+        SettingsCard {
             HStack {
                 L.text("ui.add_skill.discovered_count", Int64(manager.discoveredSkills.count), using: lm)
-                    .font(.caption.bold())
+                    .font(.subheadline.weight(.semibold))
+
                 Spacer()
+
                 Button(L.string("ui.action.select_all", using: lm)) {
                     selectedSkillIDs = Set(manager.discoveredSkills.map(\.id))
                 }
                 .font(.caption)
+
                 Button(L.string("ui.action.deselect_all", using: lm)) {
                     selectedSkillIDs.removeAll()
                 }
                 .font(.caption)
             }
+            .padding(.horizontal, 12)
+            .padding(.top, 11)
+            .padding(.bottom, 5)
+
+            SettingsDivider()
 
             ForEach(manager.discoveredSkills) { discovered in
                 HStack(spacing: 8) {
@@ -255,7 +228,7 @@ struct AddSkillView: View {
                                     .font(.caption2.weight(.semibold))
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 1)
-                                    .background(.orange.opacity(0.2), in: Capsule())
+                                    .background(.orange.opacity(0.16), in: Capsule())
                                     .foregroundStyle(.orange)
                             }
                         }
@@ -273,17 +246,74 @@ struct AddSkillView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-                .padding(.vertical, 2)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
             }
 
-            Button(L.string("ui.action.import_selected", using: lm)) {
-                importSelectedFromGit()
+            SettingsDivider()
+
+            HStack {
+                Spacer()
+                Button(L.string("ui.action.import_selected", using: lm)) {
+                    importSelectedFromGit()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(selectedSkillIDs.isEmpty || isLoading)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(selectedSkillIDs.isEmpty || isLoading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
-        .padding(10)
-        .background(.blue.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var importResultCard: some View {
+        SettingsCard {
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                L.text("ui.add_skill.imported_count", Int64(importedSkills.count), using: lm)
+                    .font(.subheadline.weight(.semibold))
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 11)
+            .padding(.bottom, 5)
+
+            SettingsDivider()
+
+            ForEach(importedSkills) { skill in
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text(skill.name)
+                        .font(.subheadline)
+                    if skill.version != nil {
+                        Text("v\(skill.version!)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+            }
+        }
+    }
+
+    private var supportedFormatsCard: some View {
+        SettingsCard {
+            VStack(alignment: .leading, spacing: 2) {
+                L.text("ui.add_skill.supported_formats", using: lm)
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.bottom, 4)
+                Text("owner/repo")
+                Text("github.com/{owner}/{repo}")
+                Text("github.com/{owner}/{repo}/tree/{branch}/{path}")
+                Text("gitlab.com/{owner}/{repo}/-/tree/{branch}/{path}")
+                Text("bitbucket.org/{owner}/{repo}/src/{branch}/{path}")
+                Text("git@github.com:{owner}/{repo}.git")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(12)
+        }
     }
 
     private func discoverFromGit() {
